@@ -1,0 +1,23 @@
+.direnv/
+
+# Binaries
+smallctl
+smallctl.exe
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
