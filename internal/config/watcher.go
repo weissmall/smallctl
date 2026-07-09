@@ -96,7 +96,3 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 
 	return done, nil
 }
-
-// Ensure types compile.
-var _ = fsnotify.Watcher{}
-var _ = slog.Logger{}

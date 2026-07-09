@@ -164,14 +164,14 @@ func gdbusTransport(title, body string) error {
 		"--dest", "org.freedesktop.Notifications",
 		"--object-path", "/org/freedesktop/Notifications",
 		"--method", "org.freedesktop.Notifications.Notify",
-		"smallctl",           // app_name
-		"0",                  // replaces_id
-		"",                   // app_icon
-		title,                // summary
-		body,                 // body
-		"[]",                 // actions
-		"{}",                 // hints
-		"5000",               // expire_timeout
+		"smallctl", // app_name
+		"0",        // replaces_id
+		"",         // app_icon
+		title,      // summary
+		body,       // body
+		"[]",       // actions
+		"{}",       // hints
+		"5000",     // expire_timeout
 	)
 	return cmd.Run()
 }
@@ -184,7 +184,7 @@ func dbusSendTransport(title, body string) error {
 		"--print-reply",
 		"/org/freedesktop/Notifications",
 		"org.freedesktop.Notifications.Notify",
-		fmt.Sprintf("string:smallctl"),
+		"string:smallctl",
 		"uint32:0",
 		"string:",
 		fmt.Sprintf("string:%s", title),
@@ -195,13 +195,3 @@ func dbusSendTransport(title, body string) error {
 	)
 	return cmd.Run()
 }
-
-// Ensure types compile.
-var (
-	_ = slog.Logger{}
-	_ = exec.Cmd{}
-	_ = LevelAll
-	_ = LevelError
-	_ = LevelOff
-	_ = fmt.Sprintf
-)

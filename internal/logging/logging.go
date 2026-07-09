@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 // Valid log levels.
@@ -129,53 +128,6 @@ func (h *levelHandler) WithGroup(name string) slog.Handler {
 	}
 }
 
-// resolveLogFile determines the effective log file path from env vars and defaults.
-//
-// Priority:
-//  1. $SMALLCTL_LOG_FILE (explicit path)
-//  2. $XDG_DATA_HOME/<binary>/log (default)
-//
-// An empty string means "no file logging."
-func resolveLogFile(explicit string, binaryName string) string {
-	// If explicit path is set via env var, use it.
-	if explicit != "" {
-		return explicit
-	}
-
-	// Read XDG_DATA_HOME, fall back to ~/.local/share.
-	xdgDataHome := os.Getenv("XDG_DATA_HOME")
-	if xdgDataHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			// Can't determine home; return empty (no file logging).
-			return ""
-		}
-		xdgDataHome = filepath.Join(home, ".local", "share")
-	}
-
-	return filepath.Join(xdgDataHome, binaryName, "log")
-}
-
-// resolveLogLevel reads $SMALLCTL_LOG_LEVEL and returns the numeric level.
-// Defaults to 3 (Info) if unset or unparseable.
-func resolveLogLevel() int {
-	raw := os.Getenv("SMALLCTL_LOG_LEVEL")
-	if raw == "" {
-		return LevelInfo
-	}
-	lvl, err := strconv.Atoi(raw)
-	if err != nil {
-		return LevelInfo
-	}
-	if lvl < 0 {
-		lvl = 0
-	}
-	if lvl > 5 {
-		lvl = 5
-	}
-	return lvl
-}
-
 // writerCloser wraps an io.Writer with a Close method for cleanup.
 type writerCloser struct {
 	io.Writer
@@ -188,6 +140,3 @@ func (w *writerCloser) Close() error {
 	}
 	return nil
 }
-
-var _ = fmt.Sprintf
-var _ = strconv.Itoa

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -343,15 +342,6 @@ func cleanupPath(path string) error {
 // CleanupPath is the exported alias of cleanupPath, accessible from other packages.
 var CleanupPath = cleanupPath
 
-// readFileString reads a file and returns its trimmed contents.
-func readFileString(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
 // FileExists checks whether a path exists and is a regular file.
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
@@ -360,12 +350,3 @@ func FileExists(path string) bool {
 	}
 	return !info.IsDir()
 }
-
-// Ensure imported packages are referenced.
-var (
-	_ = yaml.Unmarshal
-	_ = strconv.Itoa
-	_ = fmt.Sprintf
-	_ = strings.TrimSpace
-	_ = filepath.Join
-)

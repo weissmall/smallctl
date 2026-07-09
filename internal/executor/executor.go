@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"strings"
@@ -267,27 +268,10 @@ func mergeArgs(defaults, overrides map[string]string) map[string]string {
 	merged := make(map[string]string)
 
 	// Start with defaults.
-	for k, v := range defaults {
-		merged[k] = v
-	}
+	maps.Copy(merged, defaults)
 
 	// Override with invocation args.
-	for k, v := range overrides {
-		merged[k] = v
-	}
+	maps.Copy(merged, overrides)
 
 	return merged
 }
-
-// Ensure types compile.
-var (
-	_ context.Context
-	_ time.Duration
-	_ = protocol.Response{}
-	_ = config.Command{}
-	_ = config.DefaultShell
-	_ = config.DefaultTimeout
-	_ = bytes.Buffer{}
-	_ = exec.Cmd{}
-	_ = syscall.WaitStatus(0)
-)

@@ -316,22 +316,3 @@ func (s *Server) Shutdown() error {
 	s.Logger.Info("server stopped")
 	return nil
 }
-
-// Ensure types compile.
-var (
-	_ = json.Marshal
-	_ = io.ReadAll
-	_ = sync.RWMutex{}
-	_ = protocol.MaxRequestSize
-	_ = protocol.Request{}
-	_ = protocol.TypePing
-	_ = protocol.Response{}
-	_ = config.Config{}
-	_ = config.CleanupPath
-	_ = executor.Executor{}
-	_ = notify.Notifier{}
-	_ = notify.LevelOff
-	_ = notify.Send
-	_ = filepath.Dir
-	_ = os.MkdirAll
-)
