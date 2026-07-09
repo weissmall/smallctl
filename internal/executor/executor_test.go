@@ -27,7 +27,6 @@ func TestNew(t *testing.T) {
 func TestResolveEnvStatic(t *testing.T) {
 	e := New(testLogger())
 
-	// Set SMALLCTL_ENV.
 	os.Setenv("SMALLCTL_ENV", "testenv")
 	defer os.Unsetenv("SMALLCTL_ENV")
 
@@ -160,9 +159,9 @@ func TestExecuteFallbackChain(t *testing.T) {
 		Commands: map[string]config.Command{
 			"chain": {
 				Fallback: []string{
-					"exit 1",   // fails
-					"exit 2",   // fails
-					"echo ok",  // succeeds
+					"exit 1",  // fails
+					"exit 2",  // fails
+					"echo ok", // succeeds
 				},
 			},
 		},
@@ -278,13 +277,11 @@ func TestExecuteOverrideArgs(t *testing.T) {
 		},
 	}
 
-	// Without override.
 	resp := e.Execute(cfg, protocol.Request{Command: "echo", Wait: true})
 	if resp.Stdout != "default\n" {
 		t.Errorf("expected 'default\\n', got %q", resp.Stdout)
 	}
 
-	// With override.
 	resp = e.Execute(cfg, protocol.Request{Command: "echo", Wait: true, Args: map[string]string{"msg": "override"}})
 	if resp.Stdout != "override\n" {
 		t.Errorf("expected 'override\\n', got %q", resp.Stdout)

@@ -90,13 +90,10 @@ func TestSubstitute(t *testing.T) {
 }
 
 func TestLoadExampleConfig(t *testing.T) {
-	// Find the example config relative to the project root.
-	// Walk up from the test dir to find it.
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Test runs from internal/config/ — go up two levels to project root.
 	examplePath := filepath.Join(dir, "..", "..", "config.example.yaml")
 
 	cfg, err := Load(examplePath)
@@ -120,7 +117,6 @@ func TestLoadExampleConfig(t *testing.T) {
 		t.Errorf("expected Timeout=%d, got %v", DefaultTimeout, cfg.Options.Timeout)
 	}
 
-	// Check a specific command.
 	cmd, ok := cfg.Commands["brightnessIncrease"]
 	if !ok {
 		t.Fatal("expected brightnessIncrease command in config")
@@ -152,13 +148,11 @@ func TestLoadNonexistent(t *testing.T) {
 }
 
 func TestConfigPath(t *testing.T) {
-	// Test explicit path.
 	got := ConfigPath("/custom/path.yaml", "myapp")
 	if got != "/custom/path.yaml" {
 		t.Errorf("explicit path: got %q, want %q", got, "/custom/path.yaml")
 	}
 
-	// Test XDG_CONFIG_HOME.
 	os.Setenv("XDG_CONFIG_HOME", "/custom/config")
 	got = ConfigPath("", "myapp")
 	if got != "/custom/config/myapp/config.yaml" {
@@ -247,13 +241,11 @@ func TestValidate(t *testing.T) {
 }
 
 func TestCleanupPath(t *testing.T) {
-	// Clean up a nonexistent file — should not error.
 	err := cleanupPath("/tmp/smallctl-nonexistent-cleanup-test")
 	if err != nil {
 		t.Errorf("cleanup of nonexistent file should not error: %v", err)
 	}
 
-	// Clean up a real file.
 	f, err := os.CreateTemp("", "smallctl-cleanup-test-*")
 	if err != nil {
 		t.Fatal(err)

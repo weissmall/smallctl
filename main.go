@@ -1,18 +1,3 @@
-// smallctl is a micro-server + CLI that decouples compositor keybinds from
-// the actual tools they invoke. A server reads a YAML configuration defining
-// named commands with environment-specific variants and fallback chains,
-// listens on a Unix domain socket, and executes commands via bash -c.
-// The CLI sends invocations and prints responses.
-//
-// Usage:
-//
-//	smallctl serve [--config <path>]     Start the IPC server
-//	smallctl invoke <command> [flags]    Invoke a named command
-//
-// Flags for invoke:
-//
-//	--args key=value,...   Override command arguments
-//	--no-wait              Fire-and-forget (don't wait for response)
 package main
 
 import (
@@ -86,7 +71,6 @@ func runServe(args []string) {
 		os.Exit(2)
 	}
 
-	// Environment override for config path (highest priority unless flag set).
 	if envConfig := strings.TrimSpace(os.Getenv("SMALLCTL_CONFIG")); envConfig != "" && *configOverride == "" {
 		*configOverride = envConfig
 	}
@@ -94,19 +78,16 @@ func runServe(args []string) {
 	binaryName := filepath.Base(os.Args[0])
 	paths := config.ResolveAppPaths(binaryName, *configOverride)
 
-	// Duplicate start guard via lock file + ping.
 	if pid, exists := lockFileExists(paths.LockPath); exists {
 		if pingServer(paths.SocketPath) {
 			fmt.Fprintf(os.Stderr, "smallctl server already running (PID %s)\n", pid)
 			os.Exit(1)
 		}
-		// Stale lock/socket.
 		fmt.Fprintf(os.Stderr, "warning: removing stale lock/socket\n")
 		_ = os.Remove(paths.LockPath)
 		_ = config.CleanupPath(paths.SocketPath)
 	}
 
-	// Write lock file.
 	if err := os.MkdirAll(filepath.Dir(paths.LockPath), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "error creating lock directory: %v\n", err)
 		os.Exit(1)
@@ -118,7 +99,6 @@ func runServe(args []string) {
 	}
 	defer os.Remove(paths.LockPath)
 
-	// Logging setup (env-level first).
 	initialLevel := parseLogLevel(os.Getenv("SMALLCTL_LOG_LEVEL"))
 	logFileEnv := resolveLogFile(os.Getenv("SMALLCTL_LOG_FILE"), binaryName)
 	logger, cleanup := logging.Setup(initialLevel, logFileEnv)
@@ -130,7 +110,6 @@ func runServe(args []string) {
 
 	logger.Info("starting smallctl server", "version", "dev", "socket", paths.SocketPath)
 
-	// Fallback: if no config found for current binary name, check canonical "smallctl" path.
 	if *configOverride == "" && !config.FileExists(paths.ConfigFile) && binaryName != "smallctl" {
 		fallback := config.ConfigPath("", "smallctl")
 		if fallback != paths.ConfigFile && config.FileExists(fallback) {
@@ -139,7 +118,6 @@ func runServe(args []string) {
 		}
 	}
 
-	// Load config.
 	cfg, err := config.Load(paths.ConfigFile)
 	if err != nil {
 		logger.Error("failed to load config", "error", err, "config", paths.ConfigFile)
@@ -147,7 +125,6 @@ func runServe(args []string) {
 	}
 	logger.Info("config loaded", "commands", len(cfg.Commands), "config", paths.ConfigFile)
 
-	// Reconfigure logging if config overrides.
 	finalLevel := initialLevel
 	if cfg.Options.LogLevel != nil {
 		finalLevel = clampLevel(*cfg.Options.LogLevel)
@@ -168,11 +145,10 @@ func runServe(args []string) {
 		logger.Info("logging reconfigured", "level", finalLevel, "file", finalLogFile)
 	}
 
-	// Executor setup.
 	exec := executor.New(logger)
-	exec.Shell = cfg.Options.Shell
+	exec.SetShell(cfg.Options.Shell)
 	if cfg.Options.Timeout != nil {
-		exec.DefaultTimeout = time.Duration(*cfg.Options.Timeout) * time.Second
+		exec.SetDefaultTimeout(time.Duration(*cfg.Options.Timeout) * time.Second)
 	}
 	if err := exec.ResolveEnv(cfg); err != nil {
 		logger.Warn("failed to resolve environment", "error", err)
@@ -180,7 +156,6 @@ func runServe(args []string) {
 		logger.Info("environment resolved", "env", exec.EnvName)
 	}
 
-	// Notification setup.
 	notifyLevelStr := strings.TrimSpace(os.Getenv("SMALLCTL_NOTIFY"))
 	if notifyLevelStr == "" {
 		notifyLevelStr = cfg.Options.Notify
@@ -193,11 +168,9 @@ func runServe(args []string) {
 		logger.Info("notifications disabled")
 	}
 
-	// Build server.
 	srv := server.New(paths.SocketPath, logger, exec, notifier, notifyLevel)
 	srv.UpdateConfig(cfg)
 
-	// Start config watcher.
 	var watchDone chan struct{}
 	watchDone, err = config.Watch(paths.ConfigFile, logger, func(newCfg *config.Config) {
 		logger.Info("config hot-reloaded", "commands", len(newCfg.Commands))
@@ -209,7 +182,6 @@ func runServe(args []string) {
 		defer close(watchDone)
 	}
 
-	// Start listening and serving.
 	if err := srv.Listen(); err != nil {
 		logger.Error("failed to listen", "error", err)
 		os.Exit(1)
@@ -338,7 +310,6 @@ func runInvoke(args []string) {
 		exit(resp.ExitCode)
 	}
 
-	// Failure path.
 	if resp.Stderr != "" {
 		fmt.Fprint(os.Stderr, resp.Stderr)
 	}

@@ -82,10 +82,8 @@ func TestServerListenAndServe(t *testing.T) {
 		_ = srv.Serve()
 	}()
 
-	// Wait for server to be ready.
 	time.Sleep(50 * time.Millisecond)
 
-	// Connect and send a ping.
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
@@ -99,7 +97,6 @@ func TestServerListenAndServe(t *testing.T) {
 		t.Fatalf("Write failed: %v", err)
 	}
 
-	// Read response (server sends one JSON line then closes).
 	resp := readResponse(t, conn)
 	conn.Close()
 
@@ -110,7 +107,6 @@ func TestServerListenAndServe(t *testing.T) {
 		t.Error("expected Success=true for ping")
 	}
 
-	// Shutdown.
 	if err := srv.Shutdown(); err != nil {
 		t.Errorf("Shutdown() error: %v", err)
 	}
@@ -130,7 +126,6 @@ func TestServerExecuteCommand(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Execute "echo" command.
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
@@ -174,7 +169,6 @@ func TestServerNoWait(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Execute with Wait=false (fire-and-forget).
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
@@ -190,7 +184,6 @@ func TestServerNoWait(t *testing.T) {
 	conn.Write(data)
 	conn.Close()
 
-	// Give the server time to process.
 	time.Sleep(100 * time.Millisecond)
 
 	if err := srv.Shutdown(); err != nil {
@@ -247,19 +240,16 @@ func TestServerStaleSocketCleanup(t *testing.T) {
 
 	socketPath := filepath.Join(tmpDir, "stale.sock")
 
-	// Create a dummy file at the socket path.
 	if err := os.WriteFile(socketPath, []byte("stale"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	srv := New(socketPath, silentLogger(), executor.New(silentLogger()), nil, notify.LevelOff)
 
-	// Listen should clean up the stale file.
 	if err := srv.Listen(); err != nil {
 		t.Fatalf("Listen() failed on stale socket: %v", err)
 	}
 
-	// Verify the socket is now a Unix socket (not the old file).
 	fi, err := os.Stat(socketPath)
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)

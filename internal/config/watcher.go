@@ -36,7 +36,6 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 		return nil, err
 	}
 
-	// Watch the parent directory to catch atomic saves (rename+create).
 	dir := filepath.Dir(path)
 	if err := watcher.Add(dir); err != nil {
 		watcher.Close()
@@ -56,7 +55,6 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 					return
 				}
 
-				// Only react to events on our target file.
 				if filepath.Base(event.Name) != targetName {
 					continue
 				}
@@ -75,8 +73,6 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 					onReload(newCfg)
 
 				case event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename):
-					// File was removed or renamed (editor atomic save).
-					// Don't reload — the next Create event will handle it.
 					logger.Warn("config file removed, keeping old config until recreation",
 						"path", path)
 				}
