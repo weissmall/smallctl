@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/executor"
-	"github.com/weissmall/smallctl/internal/general"
-	"github.com/weissmall/smallctl/internal/notify"
-	"github.com/weissmall/smallctl/internal/protocol"
+	"smallctl/internal/config"
+	"smallctl/internal/executor"
+	"smallctl/internal/general"
+	"smallctl/internal/notify"
+	"smallctl/internal/protocol"
 )
 
 func silentLogger() *slog.Logger {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 func Validate(cfg *Config) error {

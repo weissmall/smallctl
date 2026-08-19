@@ -5,25 +5,63 @@
       flake = false;
     };
   };
+
   outputs =
     { self, nixpkgs }:
     let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        config = {
-          allowUnfree = true;
-        };
-      };
-      packages = [
-        pkgs.go
-        pkgs.gopls
-        pkgs.libnotify
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
       ];
+      forAllSystems =
+        f:
+        builtins.listToAttrs (
+          map (system: {
+            name = system;
+            value = f system;
+          }) systems
+        );
+      mkPkgs =
+        system:
+        import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+          };
+        };
     in
     {
-      devShells.${system}.default = pkgs.mkShell {
-        packages = packages;
-      };
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = mkPkgs system;
+          smallctl = pkgs.buildGoModule {
+            pname = "smallctl";
+            version = "0.1.0";
+            src = self;
+            vendorHash = "sha256-AVoMypzpvdkm4qiSOs4JLiBoCwG6+N/phwqZt/WTCr8=";
+          };
+        in
+        {
+          inherit smallctl;
+          default = smallctl;
+        }
+      );
+
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = mkPkgs system;
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              pkgs.go
+              pkgs.gopls
+              pkgs.libnotify
+            ];
+          };
+        }
+      );
     };
 }

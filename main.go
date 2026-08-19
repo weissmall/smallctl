@@ -16,13 +16,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/executor"
-	"github.com/weissmall/smallctl/internal/general"
-	"github.com/weissmall/smallctl/internal/logging"
-	"github.com/weissmall/smallctl/internal/notify"
-	"github.com/weissmall/smallctl/internal/protocol"
-	"github.com/weissmall/smallctl/internal/server"
+	"smallctl/internal/config"
+	"smallctl/internal/executor"
+	"smallctl/internal/general"
+	"smallctl/internal/logging"
+	"smallctl/internal/notify"
+	"smallctl/internal/protocol"
+	"smallctl/internal/server"
 )
 
 func main() {

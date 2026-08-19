@@ -5,9 +5,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/notify"
-	"github.com/weissmall/smallctl/internal/ports"
+	"smallctl/internal/config"
+	"smallctl/internal/notify"
+	"smallctl/internal/ports"
 )
 
 // Server is the Unix socket IPC server.

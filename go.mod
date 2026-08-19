@@ -1,4 +1,4 @@
-module github.com/weissmall/smallctl
+module smallctl
 
 go 1.26.1
 

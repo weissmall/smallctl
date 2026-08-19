@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 func TestSubstitute(t *testing.T) {

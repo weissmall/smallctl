@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 // MainConfigName is the file name of the main config file. It is always

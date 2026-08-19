@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 func Setup(level int, logFile string) (*slog.Logger, func() error) {

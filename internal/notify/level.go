@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 // Level defines when notifications are sent.

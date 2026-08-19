@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/general"
-	"github.com/weissmall/smallctl/internal/protocol"
+	"smallctl/internal/config"
+	"smallctl/internal/general"
+	"smallctl/internal/protocol"
 )
 
 func New(logger *slog.Logger) *Executor {

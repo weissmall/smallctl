@@ -24,7 +24,15 @@ instead of hunting through your window manager keybind configuration.
 ## Installation
 
 ```bash
-go install github.com/weissmall/smallctl@latest
+git clone https://github.com/weissmall/smallctl.git
+cd smallctl
+go build -o ~/.local/bin/smallctl .
+```
+
+Or with Nix:
+
+```bash
+nix build github:weissmall/smallctl
 ```
 
 Requires Go 1.26+.

@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/general"
-	"github.com/weissmall/smallctl/internal/notify"
-	"github.com/weissmall/smallctl/internal/ports"
-	"github.com/weissmall/smallctl/internal/protocol"
+	"smallctl/internal/config"
+	"smallctl/internal/general"
+	"smallctl/internal/notify"
+	"smallctl/internal/ports"
+	"smallctl/internal/protocol"
 )
 
 func New(

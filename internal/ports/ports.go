@@ -3,9 +3,9 @@ package ports
 import (
 	"time"
 
-	"github.com/weissmall/smallctl/internal/config"
-	"github.com/weissmall/smallctl/internal/notify"
-	"github.com/weissmall/smallctl/internal/protocol"
+	"smallctl/internal/config"
+	"smallctl/internal/notify"
+	"smallctl/internal/protocol"
 )
 
 type ExecutionEngine interface {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weissmall/smallctl/internal/general"
+	"smallctl/internal/general"
 )
 
 func writeFile(t *testing.T, dir, name, content string) {
