@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/weissmall/smallctl/internal/config"
+	"github.com/weissmall/smallctl/internal/general"
 	"github.com/weissmall/smallctl/internal/protocol"
 )
 
@@ -16,11 +17,11 @@ func testLogger() *slog.Logger {
 
 func TestNew(t *testing.T) {
 	e := New(testLogger())
-	if e.Shell != config.DefaultShell {
-		t.Errorf("expected Shell=%q, got %q", config.DefaultShell, e.Shell)
+	if e.Shell != general.DefaultShell {
+		t.Errorf("expected Shell=%q, got %q", general.DefaultShell, e.Shell)
 	}
-	if e.DefaultTimeout != config.DefaultTimeout*time.Second {
-		t.Errorf("expected DefaultTimeout=%v, got %v", config.DefaultTimeout*time.Second, e.DefaultTimeout)
+	if e.DefaultTimeout != general.DefaultTimeout*time.Second {
+		t.Errorf("expected DefaultTimeout=%v, got %v", general.DefaultTimeout*time.Second, e.DefaultTimeout)
 	}
 }
 

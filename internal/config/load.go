@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/weissmall/smallctl/internal/general"
 )
 
 func Load(path string) (*Config, error) {
@@ -35,13 +37,13 @@ func Load(path string) (*Config, error) {
 
 func applyDefaults(cfg *Config) {
 	if cfg.Options.Shell == "" {
-		cfg.Options.Shell = DefaultShell
+		cfg.Options.Shell = general.DefaultShell
 	}
 	if cfg.Options.Notify == "" {
-		cfg.Options.Notify = DefaultNotify
+		cfg.Options.Notify = general.DefaultNotify
 	}
 	if cfg.Options.Timeout == nil {
-		d := DefaultTimeout
+		d := general.DefaultTimeout
 		cfg.Options.Timeout = &d
 	}
 	if cfg.Commands == nil {

@@ -18,6 +18,7 @@ import (
 
 	"github.com/weissmall/smallctl/internal/config"
 	"github.com/weissmall/smallctl/internal/executor"
+	"github.com/weissmall/smallctl/internal/general"
 	"github.com/weissmall/smallctl/internal/logging"
 	"github.com/weissmall/smallctl/internal/notify"
 	"github.com/weissmall/smallctl/internal/protocol"
@@ -410,21 +411,21 @@ func parseArgs(flagValue string) (map[string]string, error) {
 
 func parseLogLevel(raw string) int {
 	if raw == "" {
-		return logging.LevelInfo
+		return general.LevelInfo
 	}
 	lvl, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil {
-		return logging.LevelInfo
+		return general.LevelInfo
 	}
 	return clampLevel(lvl)
 }
 
 func clampLevel(level int) int {
-	if level < logging.LevelQuiet {
-		return logging.LevelQuiet
+	if level < general.LevelQuiet {
+		return general.LevelQuiet
 	}
-	if level > logging.LevelVerbose {
-		return logging.LevelVerbose
+	if level > general.LevelVerbose {
+		return general.LevelVerbose
 	}
 	return level
 }

@@ -6,13 +6,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/weissmall/smallctl/internal/general"
 )
 
 func Setup(level int, logFile string) (*slog.Logger, func() error) {
-	if level < 0 || level > 5 {
-		level = LevelInfo
+	if level < general.LevelQuiet || level > general.LevelVerbose {
+		level = general.LevelInfo
 	}
-	minLevel := LevelNames[level]
+	minLevel := general.LevelNames[level]
 
 	var writers []io.Writer
 	writers = append(writers, os.Stdout)

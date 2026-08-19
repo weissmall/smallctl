@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/weissmall/smallctl/internal/config"
+	"github.com/weissmall/smallctl/internal/general"
 	"github.com/weissmall/smallctl/internal/notify"
 	"github.com/weissmall/smallctl/internal/ports"
 	"github.com/weissmall/smallctl/internal/protocol"
@@ -93,7 +94,7 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	var data []byte
 	buf := make([]byte, 1)
-	for len(data) < protocol.MaxRequestSize {
+	for len(data) < general.MaxRequestSize {
 		n, err := conn.Read(buf)
 		if n == 0 || (err != nil && err != io.EOF) {
 			if err != nil {
@@ -221,7 +222,7 @@ func (s *Server) Shutdown() error {
 	select {
 	case <-done:
 		s.Logger.Debug("all connections drained")
-	case <-time.After(ShutdownTimeout):
+	case <-time.After(general.ShutdownTimeout):
 		s.Logger.Warn("shutdown timeout, some connections may be dropped")
 	}
 

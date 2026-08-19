@@ -12,14 +12,15 @@ import (
 	"time"
 
 	"github.com/weissmall/smallctl/internal/config"
+	"github.com/weissmall/smallctl/internal/general"
 	"github.com/weissmall/smallctl/internal/protocol"
 )
 
 func New(logger *slog.Logger) *Executor {
 	return &Executor{
 		Logger:         logger,
-		Shell:          config.DefaultShell,
-		DefaultTimeout: config.DefaultTimeout * time.Second,
+		Shell:          general.DefaultShell,
+		DefaultTimeout: general.DefaultTimeout * time.Second,
 	}
 }
 
@@ -33,7 +34,7 @@ func (e *Executor) SetDefaultTimeout(timeout time.Duration) {
 
 func (e *Executor) ResolveEnv(cfg *config.Config) error {
 	if cfg.Options.EnvCommand != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), envResolveTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), general.EnvResolveTimeout)
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, e.Shell, "-c", cfg.Options.EnvCommand)

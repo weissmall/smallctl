@@ -12,6 +12,7 @@ import (
 
 	"github.com/weissmall/smallctl/internal/config"
 	"github.com/weissmall/smallctl/internal/executor"
+	"github.com/weissmall/smallctl/internal/general"
 	"github.com/weissmall/smallctl/internal/notify"
 	"github.com/weissmall/smallctl/internal/protocol"
 )
@@ -34,10 +35,10 @@ func setupTestServer(t *testing.T) (*Server, string) {
 	exec := executor.New(silentLogger())
 	exec.EnvName = ""
 
-	defaultTimeout := config.DefaultTimeout
+	defaultTimeout := general.DefaultTimeout
 	cfg := &config.Config{
 		Options: config.Options{
-			Shell:   config.DefaultShell,
+			Shell:   general.DefaultShell,
 			Timeout: &defaultTimeout,
 		},
 		Commands: map[string]config.Command{

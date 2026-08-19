@@ -3,10 +3,12 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/weissmall/smallctl/internal/general"
 )
 
 func Validate(cfg *Config) error {
-	if cfg.Options.Notify != "" && !ValidNotifyValues[cfg.Options.Notify] {
+	if cfg.Options.Notify != "" && !general.ValidNotifyValues[cfg.Options.Notify] {
 		return fmt.Errorf("options.notify must be one of: off, error, all (got: %q)", cfg.Options.Notify)
 	}
 

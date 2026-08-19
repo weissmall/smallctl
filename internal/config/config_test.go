@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/weissmall/smallctl/internal/general"
 )
 
 func TestSubstitute(t *testing.T) {
@@ -113,8 +115,8 @@ func TestLoadExampleConfig(t *testing.T) {
 		t.Errorf("expected default Notify='off', got %q", cfg.Options.Notify)
 	}
 
-	if cfg.Options.Timeout == nil || *cfg.Options.Timeout != DefaultTimeout {
-		t.Errorf("expected Timeout=%d, got %v", DefaultTimeout, cfg.Options.Timeout)
+	if cfg.Options.Timeout == nil || *cfg.Options.Timeout != general.DefaultTimeout {
+		t.Errorf("expected Timeout=%d, got %v", general.DefaultTimeout, cfg.Options.Timeout)
 	}
 
 	cmd, ok := cfg.Commands["brightnessIncrease"]
@@ -142,7 +144,7 @@ func TestLoadNonexistent(t *testing.T) {
 	if len(cfg.Commands) != 0 {
 		t.Errorf("expected 0 commands from nonexistent file, got %d", len(cfg.Commands))
 	}
-	if cfg.Options.Shell != DefaultShell {
+	if cfg.Options.Shell != general.DefaultShell {
 		t.Errorf("expected default shell, got %q", cfg.Options.Shell)
 	}
 }
@@ -229,7 +231,7 @@ func TestValidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.cfg.Options.Timeout == nil {
-				d := DefaultTimeout
+				d := general.DefaultTimeout
 				tt.cfg.Options.Timeout = &d
 			}
 			err := Validate(tt.cfg)
