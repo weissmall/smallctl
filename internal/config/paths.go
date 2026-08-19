@@ -58,3 +58,21 @@ func FileExists(path string) bool {
 	}
 	return !info.IsDir()
 }
+
+// HasConfig reports whether the main config file exists or its directory
+// contains any YAML file that Load would pick up.
+func HasConfig(path string) bool {
+	if FileExists(path) {
+		return true
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && isConfigFileName(entry.Name()) {
+			return true
+		}
+	}
+	return false
+}

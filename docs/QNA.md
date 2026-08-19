@@ -19,7 +19,7 @@ Single Go binary (`main.go`) plus focused packages under `internal/`:
 
 | Package | Responsibility |
 |---|---|
-| `internal/config` | YAML loading, validation, `${var}` substitution, fsnotify hot-reload watcher, XDG path resolution |
+| `internal/config` | Multi-file YAML loading (main config + per-env files + options files), validation, `${var}` substitution, fsnotify hot-reload watcher, XDG path resolution |
 | `internal/server` | Unix socket listener; accepts newline-delimited JSON requests, holds the current config behind a mutex |
 | `internal/executor` | Resolves env-specific commands and fallback chains, runs them with the configured shell and timeout |
 | `internal/protocol` | Request/Response types (`command` and `ping`) |
@@ -43,8 +43,10 @@ smallctl invoke <name>
 
 - **Interfaces in `internal/ports`** keep the server decoupled from execution
   and notification mechanics, which simplifies testing with fakes.
-- **Hot reload via fsnotify**: editing `config.yaml` swaps the server's config
+- **Hot reload via fsnotify**: editing any `*.yaml` file in the config
+  directory re-reads and recombines them all, swapping the server's config
   atomically (`UpdateConfig`) with no restart; env is re-resolved on reload.
+  See [docs/CONFIGURATION.md](./CONFIGURATION.md) for the multi-file rules.
 - **Env resolution order**: `options.env_command` output → `$SMALLCTL_ENV` →
   empty (fallback commands run directly).
 - **Single-instance guard**: a PID lock file plus an internal `ping` request;

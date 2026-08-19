@@ -1,7 +1,8 @@
 // Package config (watcher) handles hot-reloading the YAML configuration
-// file using fsnotify. When the config file changes, it re-parses and
-// invokes a callback with the new Config. On parse errors, the old config
-// is preserved and an error is logged.
+// using fsnotify. When any YAML file in the config directory changes, the
+// whole configuration is re-parsed and a callback is invoked with the new
+// Config. On parse errors, the old config is preserved and an error is
+// logged.
 package config
 
 import (
@@ -11,19 +12,21 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// Watch starts a file watcher on the given config path. When the file is
-// modified, it re-parses via Load() and calls onReload with the new config.
+// Watch starts a file watcher on the directory containing the given config
+// path. When any loadable YAML file in that directory is created, modified,
+// renamed, or removed, it re-parses the whole configuration via Load() and
+// calls onReload with the new config.
 // If parsing fails, the old config is kept and the error is logged.
 //
 // The watcher goroutine runs until the returned done channel is closed.
 // The caller should close(done) to stop watching (typically during shutdown).
 //
-// The watcher watches the parent directory (not the file directly) to handle
-// atomic save patterns where editors replace the file via rename+create.
-// Events are filtered to only react to changes on the target filename.
+// The watcher watches the directory (not individual files) to handle atomic
+// save patterns where editors replace files via rename+create. Events are
+// filtered to non-hidden *.yaml files, matching what Load() picks up.
 //
 // Parameters:
-//   - path: absolute path to the YAML config file to watch.
+//   - path: absolute path to the main YAML config file; its directory is watched.
 //   - logger: structured logger for reporting reload successes/errors.
 //   - onReload: callback invoked with the new Config after a successful reload.
 //     Called synchronously from the watcher goroutine. The caller should
@@ -43,7 +46,6 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 	}
 
 	done = make(chan struct{})
-	targetName := filepath.Base(path)
 
 	go func() {
 		defer watcher.Close()
@@ -55,27 +57,25 @@ func Watch(path string, logger *slog.Logger, onReload func(*Config)) (done chan 
 					return
 				}
 
-				if filepath.Base(event.Name) != targetName {
+				if !isConfigFileName(filepath.Base(event.Name)) {
 					continue
 				}
 
-				switch {
-				case event.Has(fsnotify.Create) || event.Has(fsnotify.Write):
-					logger.Debug("config file changed, reloading", "path", path)
-					newCfg, loadErr := Load(path)
-					if loadErr != nil {
-						logger.Error("config reload failed, keeping old config",
-							"error", loadErr, "path", path)
-						continue
-					}
-					logger.Info("config reloaded successfully",
-						"commands", len(newCfg.Commands))
-					onReload(newCfg)
-
-				case event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename):
-					logger.Warn("config file removed, keeping old config until recreation",
-						"path", path)
+				if !(event.Has(fsnotify.Create) || event.Has(fsnotify.Write) ||
+					event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename)) {
+					continue
 				}
+
+				logger.Debug("config change detected, reloading", "path", event.Name)
+				newCfg, loadErr := Load(path)
+				if loadErr != nil {
+					logger.Error("config reload failed, keeping old config",
+						"error", loadErr, "path", path)
+					continue
+				}
+				logger.Info("config reloaded successfully",
+					"commands", len(newCfg.Commands))
+				onReload(newCfg)
 
 			case err, ok := <-watcher.Errors:
 				if !ok {

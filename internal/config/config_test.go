@@ -134,7 +134,8 @@ func TestLoadExampleConfig(t *testing.T) {
 }
 
 func TestLoadNonexistent(t *testing.T) {
-	cfg, err := Load("/tmp/smallctl-nonexistent-config-test.yaml")
+	dir := t.TempDir()
+	cfg, err := Load(filepath.Join(dir, "config.yaml"))
 	if err != nil {
 		t.Fatalf("Load of nonexistent file should not error: %v", err)
 	}

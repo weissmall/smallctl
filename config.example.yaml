@@ -6,6 +6,11 @@
 #
 # All fields are optional — the server starts with an empty config
 # and logs a warning if no config file is found.
+#
+# You can also split this file: any *.yaml file placed next to it with a
+# commands section is an env file named after the file (dms.yaml → env
+# "dms", commands written as plain strings). Files without a commands
+# section merge their options. See docs/CONFIGURATION.md for details.
 
 # ── Global server options ─────────────────────────────────────────
 options:
@@ -17,6 +22,8 @@ options:
   # log_level: 3
 
   # Log file path. Empty = no file logging. Default: $XDG_DATA_HOME/<binary>/log
+  # Supports ~ and $VAR expansion (e.g. "$HOME/.config/smallctl/log").
+  # Read at startup — restart the server to change it.
   # log_file: ""
 
   # Desktop notifications: "off" | "error" | "all"

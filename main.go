@@ -101,7 +101,7 @@ func runServe(args []string) {
 	defer os.Remove(paths.LockPath)
 
 	initialLevel := parseLogLevel(os.Getenv("SMALLCTL_LOG_LEVEL"))
-	logFileEnv := resolveLogFile(os.Getenv("SMALLCTL_LOG_FILE"), binaryName)
+	logFileEnv := logging.ExpandPath(resolveLogFile(os.Getenv("SMALLCTL_LOG_FILE"), binaryName))
 	logger, cleanup := logging.Setup(initialLevel, logFileEnv)
 	defer func() {
 		if cleanup != nil {
@@ -111,9 +111,9 @@ func runServe(args []string) {
 
 	logger.Info("starting smallctl server", "version", "dev", "socket", paths.SocketPath)
 
-	if *configOverride == "" && !config.FileExists(paths.ConfigFile) && binaryName != "smallctl" {
+	if *configOverride == "" && !config.HasConfig(paths.ConfigFile) && binaryName != "smallctl" {
 		fallback := config.ConfigPath("", "smallctl")
-		if fallback != paths.ConfigFile && config.FileExists(fallback) {
+		if fallback != paths.ConfigFile && config.HasConfig(fallback) {
 			logger.Info("config not found for binary name; using fallback", "path", fallback)
 			paths.ConfigFile = fallback
 		}
@@ -132,7 +132,7 @@ func runServe(args []string) {
 	}
 	finalLogFile := logFileEnv
 	if cfg.Options.LogFile != "" {
-		finalLogFile = cfg.Options.LogFile
+		finalLogFile = logging.ExpandPath(cfg.Options.LogFile)
 	}
 	if finalLogFile == "" {
 		finalLogFile = resolveLogFile("", binaryName)
@@ -157,11 +157,7 @@ func runServe(args []string) {
 		logger.Info("environment resolved", "env", exec.EnvName)
 	}
 
-	notifyLevelStr := strings.TrimSpace(os.Getenv("SMALLCTL_NOTIFY"))
-	if notifyLevelStr == "" {
-		notifyLevelStr = cfg.Options.Notify
-	}
-	notifyLevel := notify.ParseLevel(strings.ToLower(notifyLevelStr))
+	notifyLevel := notify.ResolveLevel(cfg.Options.Notify)
 	notifier := notify.Probe(logger)
 	if notifier != nil {
 		logger.Info("notifications enabled", "transport", notifier.TransportName, "level", notifyLevel)

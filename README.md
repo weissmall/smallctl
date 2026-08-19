@@ -13,8 +13,8 @@ instead of hunting through your window manager keybind configuration.
 ## Features
 
 - **Single binary** — `smallctl serve` and `smallctl invoke`
-- **YAML config** — defines commands with args, env-specific variants, and fallback chains
-- **Hot reload** — edit the config file; the server picks up changes without restart
+- **YAML config** — defines commands with args, env-specific variants, and fallback chains; split across multiple files per environment if you like
+- **Hot reload** — edit any config file; the server picks up changes without restart
 - **Environment awareness** — run different commands per machine (desktop vs. laptop)
 - **Fallback chains** — if one tool isn't available, try the next
 - **Desktop notifications** — optional notify on errors or all invocations
@@ -103,15 +103,68 @@ SMALLCTL_CONFIG=~/dotfiles/smallctl.yaml smallctl serve
 3. `$XDG_CONFIG_HOME/<binary>/config.yaml`
 4. Fallback to `$XDG_CONFIG_HOME/smallctl/config.yaml` (handy when running `go run . serve` whose binary name is `main`)
 
-See [config.example.yaml](./config.example.yaml) for a full annotated example.
+The resolved file is the **main config**; every other `*.yaml` file placed in
+the same directory is loaded and combined with it. See
+[Multiple config files](#multiple-config-files) below and
+[docs/CONFIGURATION.md](./docs/CONFIGURATION.md) for the full rules.
+
+### Multiple config files
+
+Instead of keeping everything in `config.yaml`, you can split the config per
+environment. A file named `dms.yaml` with a `commands` section is an **env
+file**: its file name becomes the key under `envs`, so commands can be written
+as plain strings:
+
+```
+~/.config/smallctl/
+├── config.yaml       # main: options + shared definitions (description, args, fallback)
+├── dms.yaml          # env "dms"
+└── noctalia.yaml     # env "noctalia"
+```
+
+```yaml
+# config.yaml                  # dms.yaml
+commands:                      commands:
+  volumeMute:                    volumeMute: "dms ipc call audio mute"
+    description: "Toggle audio mute"
+```
+
+```yaml
+# noctalia.yaml
+commands:
+  volumeMute: "noctalia-shell ipc volume mute"
+```
+
+The three files combine into:
+
+```yaml
+commands:
+  volumeMute:
+    description: "Toggle audio mute"
+    envs:
+      dms: "dms ipc call audio mute"
+      noctalia: "noctalia-shell ipc volume mute"
+```
+
+Rules in brief:
+
+- `*.yaml` files with a `commands` section are env files (file name = env key;
+  full command objects are also accepted).
+- `*.yaml` files without a `commands` section merge their `options`.
+- Hidden files, other extensions, and subdirectories are ignored.
+- All `envs` maps are union-merged; defining the same command+env twice is an
+  error naming both files.
+- Any change to any of these files triggers a hot reload.
+
+See [docs/CONFIGURATION.md](./docs/CONFIGURATION.md) for details.
 
 ### Schema
 
 ```yaml
 options:
   env_command: "hostname"     # optional: command whose output sets env name
-  log_level: 3                # 0-5 (default: 3; 0 = quiet, 5 = verbose)
-  log_file: ""                # empty = no file (default: $XDG_DATA_HOME/<binary>/log)
+  log_level: 3                # 0-5 (default: 3; 0 = quiet, 5 = verbose); read at startup
+  log_file: ""                # empty = no file (default: $XDG_DATA_HOME/<binary>/log); ~ and $VAR are expanded; read at startup
   notify: "off"               # off | error | all
   timeout: 30                 # seconds, 0 = no limit (no timeout)
   shell: "bash"               # shell executable for -c execution
@@ -140,6 +193,12 @@ $$         → literal $
 1. `options.env_command` is executed; trimmed stdout becomes the environment name.
 2. If the command is unset or fails, `$SMALLCTL_ENV` (if present) is used.
 3. If neither is set the environment is empty and `fallback` commands are invoked directly.
+
+### Hot reload
+
+All config files are re-read on change (see [Multiple config files](#multiple-config-files)). The `notify` level is re-applied on reload. Logging options (`log_level`, `log_file`) are read at startup — restart the server to change them.
+
+`log_file` (and `$SMALLCTL_LOG_FILE`) expand `~` and environment variables, e.g. `$HOME/.config/smallctl/log`.
 
 ### Execution Model
 

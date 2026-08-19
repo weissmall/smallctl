@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/weissmall/smallctl/internal/config"
@@ -42,6 +43,11 @@ func (s *Server) UpdateConfig(cfg *config.Config) {
 	s.Executor.SetShell(cfg.Options.Shell)
 	if cfg.Options.Timeout != nil {
 		s.Executor.SetDefaultTimeout(time.Duration(*cfg.Options.Timeout) * time.Second)
+	}
+
+	if level := notify.ResolveLevel(cfg.Options.Notify); level != s.NotifyLevel {
+		s.Logger.Info("notify level updated", "level", level)
+		s.NotifyLevel = level
 	}
 
 	if err := s.Executor.ResolveEnv(cfg); err != nil {
@@ -186,24 +192,22 @@ func (s *Server) maybeNotify(command string, resp protocol.Response) {
 		body = "All attempts failed"
 		if len(resp.Errors) > 0 {
 			last := resp.Errors[len(resp.Errors)-1]
-			if last.Stderr != "" {
-				if len(last.Stderr) > 200 {
-					body = last.Stderr[:200] + "..."
-				} else {
-					body = last.Stderr
-				}
+			if flattened := flattenOutput(last.Stderr); flattened != "" {
+				body = flattened
 			}
 		}
 	} else {
 		title = fmt.Sprintf("smallctl: %s succeeded", command)
-		if len(resp.Stdout) > 100 {
-			body = resp.Stdout[:100] + "..."
-		} else {
-			body = resp.Stdout
-		}
+		body = flattenOutput(resp.Stdout + " " + resp.Stderr)
 	}
 
 	s.Notifier.Dispatch(s.NotifyLevel, isError, title, body)
+}
+
+// flattenOutput collapses all whitespace runs (newlines, tabs, ...) into
+// single spaces, so multi-line command output fits a notification body.
+func flattenOutput(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func (s *Server) Shutdown() error {

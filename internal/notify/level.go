@@ -1,6 +1,11 @@
 package notify
 
-import "github.com/weissmall/smallctl/internal/general"
+import (
+	"os"
+	"strings"
+
+	"github.com/weissmall/smallctl/internal/general"
+)
 
 // Level defines when notifications are sent.
 type Level string
@@ -20,4 +25,14 @@ func ParseLevel(s string) Level {
 	default:
 		return LevelOff
 	}
+}
+
+// ResolveLevel determines the effective notification level: the
+// $SMALLCTL_NOTIFY environment variable overrides the config value.
+func ResolveLevel(configValue string) Level {
+	levelStr := strings.TrimSpace(os.Getenv("SMALLCTL_NOTIFY"))
+	if levelStr == "" {
+		levelStr = configValue
+	}
+	return ParseLevel(strings.ToLower(levelStr))
 }
