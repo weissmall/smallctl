@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> Current project code is 90% written with generative tools (AI, LLMs) and covers only my needs for now. Next iteration will be reviewed, improved with few more features and covered with documentation. Therefore issues and PRs won't be accepted until next version
+
 # smallctl
 
 Decouple your compositor keybinds from the tools they invoke.

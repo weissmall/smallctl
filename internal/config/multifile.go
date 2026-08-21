@@ -204,9 +204,7 @@ func mergeCommand(cfg *Config, name string, command Command, file string, envOri
 		if existing.Args == nil {
 			existing.Args = make(map[string]string)
 		}
-		for key, value := range command.Args {
-			existing.Args[key] = value
-		}
+		maps.Copy(existing.Args, command.Args)
 	}
 
 	if len(command.Envs) > 0 {
