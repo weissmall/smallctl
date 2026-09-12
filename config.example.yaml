@@ -14,6 +14,10 @@
 
 # ── Global server options ─────────────────────────────────────────
 options:
+  # Optional environment presets for `smallctl web-config`. They make
+  # environment-specific command fields available throughout the UI.
+  # environments: [noctalia, dms, laptop]
+
   # Command whose stdout determines the current environment name.
   # Overrides $SMALLCTL_ENV if set. Re-run on each hot-reload.
   # env_command: "hostname"

@@ -2,6 +2,11 @@ package config
 
 // Options holds global server configuration.
 type Options struct {
+	// Environments is the optional set of environment names prepared in the
+	// web configuration UI. It is metadata only; command execution still uses
+	// the environment selected by EnvCommand or SMALLCTL_ENV.
+	Environments []string `yaml:"environments"`
+
 	// EnvCommand is a shell command whose stdout (trimmed) determines the
 	// current environment name. Overrides $SMALLCTL_ENV.
 	// Example: "hostname"

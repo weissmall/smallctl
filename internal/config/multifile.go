@@ -244,16 +244,20 @@ func lookupEnvOrigin(envOrigins map[string]map[string]string, command, env strin
 // optionsPatch mirrors Options with pointer fields so that explicitly set
 // values can be distinguished from unset ones while merging files.
 type optionsPatch struct {
-	EnvCommand *string `yaml:"env_command"`
-	LogLevel   *int    `yaml:"log_level"`
-	LogFile    *string `yaml:"log_file"`
-	Notify     *string `yaml:"notify"`
-	Timeout    *int    `yaml:"timeout"`
-	Shell      *string `yaml:"shell"`
+	Environments *[]string `yaml:"environments"`
+	EnvCommand   *string   `yaml:"env_command"`
+	LogLevel     *int      `yaml:"log_level"`
+	LogFile      *string   `yaml:"log_file"`
+	Notify       *string   `yaml:"notify"`
+	Timeout      *int      `yaml:"timeout"`
+	Shell        *string   `yaml:"shell"`
 }
 
 func optionsPatchFrom(options Options) optionsPatch {
 	patch := optionsPatch{}
+	if len(options.Environments) > 0 {
+		patch.Environments = &options.Environments
+	}
 	if options.EnvCommand != "" {
 		patch.EnvCommand = &options.EnvCommand
 	}
@@ -288,6 +292,9 @@ func newOptionsMerger() *optionsMerger {
 }
 
 func (m *optionsMerger) merge(patch optionsPatch, file string) error {
+	if err := mergeEnvironments(&m.values.Environments, patch.Environments, file, m.origins); err != nil {
+		return err
+	}
 	fields := []struct {
 		name    string
 		current **string
@@ -320,6 +327,23 @@ func (m *optionsMerger) merge(patch optionsPatch, file string) error {
 	return nil
 }
 
+func mergeEnvironments(current **[]string, next *[]string, file string, origins map[string]string) error {
+	if next == nil {
+		return nil
+	}
+	if *current != nil {
+		if previous, exists := origins["environments"]; exists {
+			if !slices.Equal(**current, *next) {
+				return fmt.Errorf("conflict in options.environments: %v (set in %s) and %v (set in %s)", **current, previous, *next, file)
+			}
+			return nil
+		}
+	}
+	*current = next
+	origins["environments"] = file
+	return nil
+}
+
 func mergeOptionField[T comparable](field string, current **T, next *T, file string, origins map[string]string) error {
 	if next == nil {
 		return nil
@@ -338,6 +362,9 @@ func mergeOptionField[T comparable](field string, current **T, next *T, file str
 }
 
 func (m *optionsMerger) applyTo(options *Options) {
+	if m.values.Environments != nil {
+		options.Environments = slices.Clone(*m.values.Environments)
+	}
 	if m.values.EnvCommand != nil {
 		options.EnvCommand = *m.values.EnvCommand
 	}

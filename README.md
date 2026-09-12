@@ -15,7 +15,7 @@ instead of hunting through your window manager keybind configuration.
 
 ## Features
 
-- **Single binary** — `smallctl serve` and `smallctl invoke`
+- **Single binary** — `smallctl serve`, `smallctl invoke`, and `smallctl web-config`
 - **YAML config** — defines commands with args, env-specific variants, and fallback chains; split across multiple files per environment if you like
 - **Hot reload** — edit any config file; the server picks up changes without restart
 - **Environment awareness** — run different commands per machine (desktop vs. laptop)
@@ -87,6 +87,25 @@ smallctl invoke <command> [--args key=value,...] [--no-wait]
 
 `smallctl invoke` exits with the exit code of the command that ultimately ran (fallbacks included). For `--no-wait` the CLI exits `0` once the request is queued.
 
+### Web configuration (PoC)
+
+```
+smallctl web-config [--config <path>] [--listen <address>]
+```
+
+Starts a local configuration UI at `http://127.0.0.1:8080`. It uses Gin on
+the server and htmx 4 in the browser. The UI provides forms for global
+settings, prepared environments, named commands, front-matter-style argument
+properties, environment-specific commands, and fallbacks—without requiring
+manual YAML edits. Save operations are atomic, so
+the running `smallctl serve` process can hot-reload the new config as usual.
+
+The PoC deliberately binds to loopback by default and has no authentication;
+keep it local unless you put it behind your own access controls. It edits a
+single main config file. Directories that contain split environment/options
+YAML files are shown read-only to avoid changing their merge semantics; split
+config editing is a follow-up feature.
+
 ### Examples
 
 ```bash
@@ -98,6 +117,9 @@ smallctl invoke brightnessIncrease --args step=15
 
 # Fire and forget
 smallctl invoke screenshot --args mode=full --no-wait
+
+# Edit a single-file configuration in the browser
+smallctl web-config
 
 # Point to an alternate config without touching the default
 SMALLCTL_CONFIG=~/dotfiles/smallctl.yaml smallctl serve
@@ -173,6 +195,7 @@ See [docs/CONFIGURATION.md](./docs/CONFIGURATION.md) for details.
 
 ```yaml
 options:
+  environments: [desktop, laptop] # optional environment presets for web-config
   env_command: "hostname"     # optional: command whose output sets env name
   log_level: 3                # 0-5 (default: 3; 0 = quiet, 5 = verbose); read at startup
   log_file: ""                # empty = no file (default: $XDG_DATA_HOME/<binary>/log); ~ and $VAR are expanded; read at startup

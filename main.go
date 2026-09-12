@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +25,7 @@ import (
 	"smallctl/internal/notify"
 	"smallctl/internal/protocol"
 	"smallctl/internal/server"
+	"smallctl/internal/webconfig"
 )
 
 func main() {
@@ -36,6 +39,8 @@ func main() {
 		runServe(os.Args[2:])
 	case "invoke":
 		runInvoke(os.Args[2:])
+	case "web-config":
+		runWebConfig(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -49,6 +54,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	fmt.Fprintf(os.Stderr, "  serve    Start the IPC server\n")
 	fmt.Fprintf(os.Stderr, "  invoke   Invoke a named command\n")
+	fmt.Fprintf(os.Stderr, "  web-config  Open a local web UI for configuration\n")
 	fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_ENV           Static environment name override\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_LOG_LEVEL     Log verbosity (0-5)\n")
@@ -58,6 +64,66 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  %s serve\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s invoke brightnessIncrease --args step=20\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s invoke screenshot --args mode=full --no-wait\n", binary)
+	fmt.Fprintf(os.Stderr, "  %s web-config\n", binary)
+}
+
+// ── web-config subcommand ───────────────────────────────────────
+
+// runWebConfig starts the local-only browser UI for the primary config file.
+func runWebConfig(args []string) {
+	flagSet := flag.NewFlagSet("web-config", flag.ExitOnError)
+	flagSet.Usage = func() { printUsage() }
+	configOverride := flagSet.String("config", "", "path to config file")
+	listenAddress := flagSet.String("listen", "127.0.0.1:8080", "HTTP listen address (keep this local; there is no authentication)")
+	if err := flagSet.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(2)
+	}
+	if extras := flagSet.Args(); len(extras) > 0 {
+		fmt.Fprintf(os.Stderr, "error: unexpected arguments: %v\n", extras)
+		os.Exit(2)
+	}
+	if envConfig := strings.TrimSpace(os.Getenv("SMALLCTL_CONFIG")); envConfig != "" && *configOverride == "" {
+		*configOverride = envConfig
+	}
+
+	binaryName := filepath.Base(os.Args[0])
+	paths := config.ResolveAppPaths(binaryName, *configOverride)
+	if *configOverride == "" && !config.HasConfig(paths.ConfigFile) && binaryName != "smallctl" {
+		fallback := config.ConfigPath("", "smallctl")
+		if fallback != paths.ConfigFile && config.HasConfig(fallback) {
+			paths.ConfigFile = fallback
+		}
+	}
+
+	app := webconfig.New(paths.ConfigFile)
+	httpServer := &http.Server{Addr: *listenAddress, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	listener, err := net.Listen("tcp", *listenAddress)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error starting web configuration server: %v\n", err)
+		os.Exit(1)
+	}
+	serverErr := make(chan error, 1)
+	go func() { serverErr <- httpServer.Serve(listener) }()
+	fmt.Printf("smallctl web configuration is available at http://%s\n", *listenAddress)
+	fmt.Printf("Editing: %s\n", paths.ConfigFile)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sig := <-sigCh:
+		fmt.Fprintf(os.Stderr, "stopping web configuration server (%s)\n", sig)
+	case err := <-serverErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			fmt.Fprintf(os.Stderr, "web configuration server error: %v\n", err)
+		}
+	}
+	signal.Stop(sigCh)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		fmt.Fprintf(os.Stderr, "web configuration shutdown error: %v\n", err)
+	}
 }
 
 // ── serve subcommand ─────────────────────────────────────────────

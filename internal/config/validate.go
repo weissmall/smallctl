@@ -27,6 +27,17 @@ func Validate(cfg *Config) error {
 		return fmt.Errorf("options.shell must not be empty")
 	}
 
+	environments := make(map[string]bool)
+	for _, environment := range cfg.Options.Environments {
+		if strings.TrimSpace(environment) == "" {
+			return fmt.Errorf("options.environments must not contain an empty name")
+		}
+		if environments[environment] {
+			return fmt.Errorf("options.environments contains duplicate name %q", environment)
+		}
+		environments[environment] = true
+	}
+
 	for name, cmd := range cfg.Commands {
 		for env, shellCmd := range cmd.Envs {
 			if strings.TrimSpace(shellCmd) == "" {
