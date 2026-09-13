@@ -107,10 +107,24 @@ func TestShowsActiveEnvironment(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	for _, text := range []string{"Active environment", "laptop", "active"} {
+	for _, text := range []string{"Active environment", "laptop", "active", "pactl up", "active environment"} {
 		if !strings.Contains(response.Body.String(), text) {
 			t.Fatalf("response is missing %q: %s", text, response.Body.String())
 		}
+	}
+}
+
+func TestCommandPreviewUsesFallbackWhenActiveEnvironmentHasNoCommand(t *testing.T) {
+	command := config.Command{
+		Args:     map[string]string{"step": "5"},
+		Fallback: []string{"amixer sset Master ${step}%+"},
+	}
+
+	if got := commandPreview(command, "laptop"); got != "amixer sset Master 5%+" {
+		t.Fatalf("commandPreview() = %q", got)
+	}
+	if got := commandPreviewSource(command, "laptop"); got != "first fallback" {
+		t.Fatalf("commandPreviewSource() = %q", got)
 	}
 }
 

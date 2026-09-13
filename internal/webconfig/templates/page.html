@@ -35,13 +35,22 @@
       .warning, .error { background: var(--subtle); color: var(--foreground); }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
       label { display: grid; gap: .35rem; color: var(--subtle-foreground); font-size: .9rem; }
-      input, select, textarea { width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid var(--input-border); border-radius: .4rem; background: var(--input); color: var(--foreground); font: inherit; }
+      input, select, textarea { width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid var(--input-border); border-radius: .4rem; background: var(--input); color: var(--foreground); font: inherit; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+      input:hover, select:hover, textarea:hover { border-color: var(--foreground); } input:focus, select:focus, textarea:focus { outline: 2px solid var(--foreground); outline-offset: 1px; }
       textarea { min-height: 5.5rem; resize: vertical; font-family: ui-monospace, monospace; font-size: .84rem; }
-      button { margin-top: 1rem; padding: .6rem .9rem; border: 1px solid var(--primary); border-radius: .4rem; background: var(--primary); color: var(--primary-foreground); font: inherit; cursor: pointer; }
+      button { margin-top: 1rem; padding: .6rem .9rem; border: 1px solid var(--primary); border-radius: .4rem; background: var(--primary); color: var(--primary-foreground); font: inherit; cursor: pointer; transition: transform .16s ease, background-color .16s ease, border-color .16s ease, opacity .16s ease; }
+      button:hover:not(:disabled) { transform: translateY(-1px); } button:active:not(:disabled) { transform: translateY(0); }
       button.secondary { border-color: var(--input-border); background: var(--subtle); color: var(--foreground); } button.compact { margin: 0; padding: .35rem .6rem; font-size: .82rem; }
       button.danger { border-color: var(--input-border); background: transparent; color: var(--foreground); margin-left: .5rem; } button:disabled { cursor: not-allowed; opacity: .5; }
-      .commands { display: grid; gap: 1rem; margin-top: 1rem; } .command-title { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+      button.add-row { margin-top: .7rem; border-style: dashed; } .commands { display: grid; gap: 1rem; margin-top: 1rem; } .command-title { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
       .command-title code { font-size: 1rem; color: var(--foreground); } .help { margin: .35rem 0 0; font-size: .8rem; color: var(--muted); }
+      .spoiler-section, .command-spoiler { padding: 0; overflow: hidden; } .spoiler { width: 100%; }
+      .spoiler > summary { list-style: none; cursor: pointer; } .spoiler > summary::-webkit-details-marker { display: none; }
+      .spoiler-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.15rem 1.25rem; transition: background-color .16s ease; } .spoiler-summary:hover { background: var(--subtle); } .spoiler-summary:focus-visible { outline: 2px solid var(--foreground); outline-offset: -3px; }
+      .spoiler-copy { min-width: 0; } .spoiler-copy p { margin: .28rem 0 0; color: var(--muted); font-size: .86rem; } .chevron { flex: 0 0 auto; color: var(--muted); font-size: 1.2rem; line-height: 1; transition: transform .2s ease, color .16s ease; } details[open] > summary .chevron { transform: rotate(180deg); color: var(--foreground); }
+      .spoiler-content { padding: 0 1.25rem 1.25rem; animation: reveal .18s ease-out; } @keyframes reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+      .command-summary { display: grid; grid-template-columns: minmax(180px, .75fr) minmax(220px, 1.25fr) auto; align-items: center; } .command-summary h2 code { font-size: 1rem; }
+      .command-preview { min-width: 0; display: grid; gap: .24rem; } .command-preview span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; } .command-preview code { overflow: hidden; color: var(--subtle-foreground); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
       .active-environment { display: flex; align-items: center; gap: .65rem; margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--foreground); border-radius: .65rem; background: var(--subtle); color: var(--foreground); }
       .active-environment strong { color: var(--foreground); } .active-environment code { padding: .16rem .45rem; border-radius: .3rem; background: var(--background); color: var(--foreground); }
       .setting-list { margin-top: 1rem; border-top: 1px solid var(--border); } .setting-row { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(260px, 1.2fr); gap: 1rem; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border); }
@@ -50,7 +59,7 @@
       .test-control { display: flex; gap: .6rem; align-items: center; } .test-control input { flex: 1; } .test-control button { margin: 0; white-space: nowrap; }
       .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; } .section-heading p { margin: .25rem 0 0; }
       .environment-list { width: 100%; margin-top: 1rem; border-collapse: collapse; overflow: hidden; border: 1px solid var(--border); border-radius: .55rem; }
-      .environment-list th, .environment-list td { padding: .65rem .75rem; text-align: left; border-top: 1px solid var(--border); } .environment-list th { border-top: 0; background: var(--subtle); color: var(--subtle-foreground); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+      .environment-list th, .environment-list td { padding: .65rem .75rem; text-align: left; border-top: 1px solid var(--border); } .environment-list tbody tr { transition: background-color .16s ease; } .environment-list tbody tr:hover { background: var(--subtle); } .environment-list th { border-top: 0; background: var(--subtle); color: var(--subtle-foreground); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
       .environment-list code { color: var(--foreground); } .status { display: inline-block; padding: .14rem .42rem; border-radius: 999px; border: 1px solid var(--input-border); background: var(--subtle); color: var(--foreground); font-size: .76rem; } .status.complete, .status.partial { background: var(--subtle); color: var(--foreground); }
       .environment-form { max-width: 480px; } .environment-form fieldset { display: flex; width: 100%; gap: .6rem; align-items: end; margin: 0; padding: 0; border: 0; } .environment-form label { flex: 1; }
       .properties { margin-top: 1rem; border: 1px solid var(--border); border-radius: .55rem; overflow: hidden; background: var(--subtle); }
@@ -61,11 +70,12 @@
       .field-heading { display: flex; align-items: baseline; gap: .65rem; margin-top: 1rem; } .field-heading h3 { margin: 0; font-size: .95rem; } .field-heading span { color: var(--muted); font-size: .8rem; }
       .environment-table { margin-top: 1rem; border: 1px solid var(--border); border-radius: .55rem; overflow: hidden; }
       .environment-row { display: grid; grid-template-columns: minmax(130px, .55fr) minmax(220px, 1.75fr); gap: .7rem; align-items: center; padding: .6rem .7rem; border-top: 1px solid var(--border); }
-      .environment-row:first-child { border-top: 0; } .environment-row code { color: var(--foreground); } .environment-row input { padding: .5rem .6rem; font-family: ui-monospace, monospace; font-size: .84rem; }
-      .environment-row.active { background: var(--active); } .active-tag { margin-left: .45rem; padding: .1rem .35rem; border: 1px solid var(--input-border); border-radius: 999px; background: var(--foreground); color: var(--background); font: 700 .68rem ui-sans-serif, sans-serif; text-transform: uppercase; }
+      .environment-row:first-child { border-top: 0; } .environment-row { transition: background-color .16s ease; } .environment-row:hover { background: var(--subtle); } .environment-row code { color: var(--foreground); } .environment-row input { padding: .5rem .6rem; font-family: ui-monospace, monospace; font-size: .84rem; }
+      .environment-row.active, .environment-row.active:hover { background: var(--active); } .active-tag { margin-left: .45rem; padding: .1rem .35rem; border: 1px solid var(--input-border); border-radius: 999px; background: var(--foreground); color: var(--background); font: 700 .68rem ui-sans-serif, sans-serif; text-transform: uppercase; }
       .form-label { display: block; margin-top: 1rem; color: var(--subtle-foreground); font-size: .9rem; }
       dialog { width: min(540px, calc(100% - 2rem)); border: 1px solid var(--foreground); border-radius: .75rem; padding: 1.25rem; background: var(--card); color: var(--foreground); box-shadow: 0 20px 60px #000a; } dialog::backdrop { background: #0009; } dialog h2 { margin-bottom: .5rem; } dialog pre { max-height: 16rem; overflow: auto; padding: .75rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--background); color: var(--foreground); white-space: pre-wrap; } dialog form { text-align: right; }
-      @media (max-width: 620px) { .page-header { align-items: stretch; flex-direction: column; } .theme-switcher { width: fit-content; } .active-environment { align-items: flex-start; flex-direction: column; gap: .35rem; } .setting-row { grid-template-columns: 1fr; gap: .6rem; } .test-control { align-items: stretch; flex-direction: column; } .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .environment-list { font-size: .84rem; } .environment-list th, .environment-list td { padding: .55rem .4rem; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } }
+      @media (max-width: 620px) { .page-header { align-items: stretch; flex-direction: column; } .theme-switcher { width: fit-content; } .active-environment { align-items: flex-start; flex-direction: column; gap: .35rem; } .setting-row { grid-template-columns: 1fr; gap: .6rem; } .test-control { align-items: stretch; flex-direction: column; } .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .environment-list { font-size: .84rem; } .environment-list th, .environment-list td { padding: .55rem .4rem; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } .spoiler-summary { padding: 1rem; } .spoiler-content { padding: 0 1rem 1rem; } .command-summary { grid-template-columns: minmax(0, 1fr) auto; } .command-preview { grid-column: 1 / -1; grid-row: 2; } }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
     </style>
   </head>
   <body>
@@ -80,9 +90,11 @@
 
     <div class="active-environment"><strong>Active environment</strong>{{if .ActiveEnvironment.Name}}<code>{{.ActiveEnvironment.Name}}</code>{{else}}<span>None</span>{{end}}<span>{{.ActiveEnvironment.Source}}</span></div>
 
-    <section>
-      <h2>Global settings</h2>
-      <form hx-post="/options" hx-target="#notice" hx-swap="innerHTML">
+    <section class="spoiler-section">
+      <details class="spoiler">
+        <summary class="spoiler-summary"><div class="spoiler-copy"><h2>Global settings</h2><p>Defaults for execution, logging, notifications, and environment detection.</p></div><span class="chevron" aria-hidden="true">⌄</span></summary>
+        <div class="spoiler-content">
+          <form hx-post="/options" hx-target="#notice" hx-swap="innerHTML">
         <div class="setting-list">
           <div class="setting-row"><div class="setting-name"><strong>Environment command</strong><span>Determines the active environment when it returns a name.</span></div><div class="test-control"><input name="env_command" value="{{.Config.Options.EnvCommand}}" placeholder="hostname"><button class="secondary" type="button" hx-post="/environment-test" hx-include="closest form" hx-target="#test-result" hx-swap="outerHTML">Test command</button></div></div>
           <div class="setting-row"><div class="setting-name"><strong>Shell</strong><span>Used for command execution and environment resolution.</span></div><input name="shell" value="{{.Config.Options.Shell}}" placeholder="bash" required></div>
@@ -91,19 +103,25 @@
           <div class="setting-row"><div class="setting-name"><strong>Log file</strong><span>Optional destination for server logs.</span></div><input name="log_file" value="{{.Config.Options.LogFile}}" placeholder="Optional path"></div>
           <div class="setting-row"><div class="setting-name"><strong>Notifications</strong><span>Choose when desktop notifications are shown.</span></div><select name="notify"><option value="off" {{if eq .Config.Options.Notify "off"}}selected{{end}}>Off</option><option value="error" {{if eq .Config.Options.Notify "error"}}selected{{end}}>On errors</option><option value="all" {{if eq .Config.Options.Notify "all"}}selected{{end}}>Always</option></select></div>
         </div>
-        <button type="submit">Save preview</button>
-      </form>
+            <button type="submit">Save preview</button>
+          </form>
+        </div>
+      </details>
     </section>
 
-    <section>
-      <div class="section-heading"><div><h2>Prepared environments</h2><p class="muted">Set these up once, then every command gets a clear command field for each environment.</p></div></div>
-      <form class="environment-form" hx-post="/environments" hx-target="#environment-list" hx-swap="outerHTML">
-        <fieldset>
-          <label>Environment name<input name="environment" placeholder="dms" required pattern="[A-Za-z0-9_.-]+"></label>
-          <button type="submit">Add environment</button>
-        </fieldset>
-      </form>
-      {{template "environment-list" .Environments}}
+    <section class="spoiler-section">
+      <details class="spoiler">
+        <summary class="spoiler-summary"><div class="spoiler-copy"><h2>Prepared environments</h2><p>Set up systems once, then give every command a clear command for each one.</p></div><span class="chevron" aria-hidden="true">⌄</span></summary>
+        <div class="spoiler-content">
+          <form class="environment-form" hx-post="/environments" hx-target="#environment-list" hx-swap="outerHTML">
+            <fieldset>
+              <label>Environment name<input name="environment" placeholder="dms" required pattern="[A-Za-z0-9_.-]+"></label>
+              <button type="submit">Add environment</button>
+            </fieldset>
+          </form>
+          {{template "environment-list" .Environments}}
+        </div>
+      </details>
     </section>
 
     <section>
@@ -124,13 +142,21 @@
 {{end}}
 
 {{define "command"}}
-<article id="command-{{.Name}}">
-  <div class="command-title"><h2><code>{{.Name}}</code></h2>{{if .ActiveEnvironment}}<span class="active-tag">active: {{.ActiveEnvironment}}</span>{{else}}<span class="muted">No active environment</span>{{end}}</div>
-  <form hx-post="/commands/{{.Name}}" hx-target="#notice" hx-swap="innerHTML">
-    {{template "command-fields" .}}
-    <button type="submit">Save preview</button>
-    <button class="danger" type="button" hx-delete="/commands/{{.Name}}" hx-target="#command-{{.Name}}" hx-swap="outerHTML" hx-confirm="Delete {{.Name}}?">Delete</button>
-  </form>
+<article id="command-{{.Name}}" class="command-spoiler">
+  <details class="spoiler">
+    <summary class="spoiler-summary command-summary">
+      <div class="spoiler-copy"><h2><code>{{.Name}}</code>{{if .ActiveEnvironment}}<span class="active-tag">active: {{.ActiveEnvironment}}</span>{{end}}</h2><p>{{if .Description}}{{.Description}}{{else}}No description provided.{{end}}</p></div>
+      <div class="command-preview"><span>{{.PreviewSource}}</span><code>{{.Preview}}</code></div>
+      <span class="chevron" aria-hidden="true">⌄</span>
+    </summary>
+    <div class="spoiler-content">
+      <form hx-post="/commands/{{.Name}}" hx-target="#notice" hx-swap="innerHTML">
+        {{template "command-fields" .}}
+        <button type="submit">Save preview</button>
+        <button class="danger" type="button" hx-delete="/commands/{{.Name}}" hx-target="#command-{{.Name}}" hx-swap="outerHTML" hx-confirm="Delete {{.Name}}?">Delete</button>
+      </form>
+    </div>
+  </details>
 </article>
 {{end}}
 
@@ -144,7 +170,7 @@
   <div class="properties-header"><span>Property</span><span>Default value</span></div>
   <div id="arguments-{{if .Name}}{{.Name}}{{else}}new{{end}}">{{range .ArgRows}}{{template "arg-row" .}}{{end}}</div>
 </div>
-<button class="secondary compact" type="button" hx-get="/partials/arg-row" hx-target="#arguments-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add property</button>
+<button class="secondary compact add-row" type="button" hx-get="/partials/arg-row" hx-target="#arguments-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add property</button>
 <span class="help">Add only the properties this command needs.</span>
 
 <label class="form-label">Environment commands</label>
@@ -160,7 +186,7 @@
   <div class="properties-header"><span>Shell command</span></div>
   <div id="fallbacks-{{if .Name}}{{.Name}}{{else}}new{{end}}">{{range .FallbackRows}}{{template "fallback-row" .}}{{end}}</div>
 </div>
-<button class="secondary compact" type="button" hx-get="/partials/fallback-row" hx-target="#fallbacks-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add fallback command</button>
+<button class="secondary compact add-row" type="button" hx-get="/partials/fallback-row" hx-target="#fallbacks-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add fallback command</button>
 {{end}}
 
 {{define "arg-row"}}<div class="property-row"><input name="args_key" value="{{.Key}}" placeholder="property"><input name="args_value" value="{{.Value}}" placeholder="value"></div>{{end}}

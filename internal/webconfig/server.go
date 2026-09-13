@@ -73,6 +73,8 @@ type commandView struct {
 	EnvironmentRows   []environmentCommandRow
 	FallbackRows      []fallbackRow
 	ActiveEnvironment string
+	Preview           string
+	PreviewSource     string
 }
 
 type frontMatterRow struct {
@@ -457,7 +459,31 @@ func (s *Server) commandView(name string, command config.Command, environments [
 		EnvironmentRows:   environmentRows,
 		FallbackRows:      fallbackRows(command.Fallback),
 		ActiveEnvironment: activeEnvironment,
+		Preview:           commandPreview(command, activeEnvironment),
+		PreviewSource:     commandPreviewSource(command, activeEnvironment),
 	}
+}
+
+func commandPreview(command config.Command, activeEnvironment string) string {
+	if activeEnvironment != "" {
+		if environmentCommand := strings.TrimSpace(command.Envs[activeEnvironment]); environmentCommand != "" {
+			return config.Substitute(environmentCommand, command.Args, nil)
+		}
+	}
+	if len(command.Fallback) > 0 {
+		return config.Substitute(command.Fallback[0], command.Args, nil)
+	}
+	return "No command is configured for this environment."
+}
+
+func commandPreviewSource(command config.Command, activeEnvironment string) string {
+	if activeEnvironment != "" && strings.TrimSpace(command.Envs[activeEnvironment]) != "" {
+		return "active environment"
+	}
+	if len(command.Fallback) > 0 {
+		return "first fallback"
+	}
+	return "command preview"
 }
 
 func mapRows(values map[string]string, minimum int) []frontMatterRow {
