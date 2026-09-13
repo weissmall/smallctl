@@ -100,6 +100,29 @@ func TestResolveEnvCommandFails(t *testing.T) {
 	}
 }
 
+func TestSetEnvironmentOverridesResolvedEnvironment(t *testing.T) {
+	e := New(testLogger())
+	cfg := &config.Config{
+		Options: config.Options{
+			EnvCommand: "echo detected",
+			Shell:      "bash",
+		},
+		Commands: make(map[string]config.Command),
+	}
+
+	if err := e.ResolveEnv(cfg); err != nil {
+		t.Fatalf("initial ResolveEnv failed: %v", err)
+	}
+	e.SetEnvironment("noctalia")
+
+	if err := e.ResolveEnv(cfg); err != nil {
+		t.Fatalf("ResolveEnv after runtime override failed: %v", err)
+	}
+	if got := e.Environment(); got != "noctalia" {
+		t.Errorf("Environment() = %q, want %q", got, "noctalia")
+	}
+}
+
 func TestExecuteSuccessFallback(t *testing.T) {
 	e := New(testLogger())
 	e.EnvName = "" // no env

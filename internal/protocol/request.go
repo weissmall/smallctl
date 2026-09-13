@@ -17,4 +17,7 @@ type Request struct {
 	// true (default) → block until command finishes, return response.
 	// false → fire-and-forget: server executes but client disconnects immediately.
 	Wait bool `json:"wait"`
+
+	// Environment is the environment name to set for an environment_set request.
+	Environment string `json:"environment,omitempty"`
 }

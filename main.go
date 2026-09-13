@@ -36,6 +36,8 @@ func main() {
 		runServe(os.Args[2:])
 	case "invoke":
 		runInvoke(os.Args[2:])
+	case "env":
+		runEnv(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -49,6 +51,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	fmt.Fprintf(os.Stderr, "  serve    Start the IPC server\n")
 	fmt.Fprintf(os.Stderr, "  invoke   Invoke a named command\n")
+	fmt.Fprintf(os.Stderr, "  env      Get or set the active environment\n")
 	fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_ENV           Static environment name override\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_LOG_LEVEL     Log verbosity (0-5)\n")
@@ -58,6 +61,8 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  %s serve\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s invoke brightnessIncrease --args step=20\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s invoke screenshot --args mode=full --no-wait\n", binary)
+	fmt.Fprintf(os.Stderr, "  %s env set noctalia\n", binary)
+	fmt.Fprintf(os.Stderr, "  %s env get\n", binary)
 }
 
 // ── serve subcommand ─────────────────────────────────────────────
@@ -154,7 +159,7 @@ func runServe(args []string) {
 	if err := exec.ResolveEnv(cfg); err != nil {
 		logger.Warn("failed to resolve environment", "error", err)
 	} else {
-		logger.Info("environment resolved", "env", exec.EnvName)
+		logger.Info("environment resolved", "env", exec.Environment())
 	}
 
 	notifyLevel := notify.ResolveLevel(cfg.Options.Notify)
@@ -212,6 +217,46 @@ func runServe(args []string) {
 	}
 }
 
+// ── env subcommand ──────────────────────────────────────────────
+
+// runEnv gets or sets the environment used by the running server.
+func runEnv(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "error: env subcommand required (get or set)")
+		os.Exit(2)
+	}
+
+	var req protocol.Request
+	switch args[0] {
+	case "get":
+		if len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "error: env get accepts no arguments")
+			os.Exit(2)
+		}
+		req = protocol.Request{Type: protocol.TypeEnvironmentGet, Wait: true}
+	case "set":
+		if len(args) != 2 || strings.TrimSpace(args[1]) == "" {
+			fmt.Fprintln(os.Stderr, "error: env set requires an environment name")
+			os.Exit(2)
+		}
+		req = protocol.Request{Type: protocol.TypeEnvironmentSet, Environment: args[1], Wait: true}
+	default:
+		fmt.Fprintf(os.Stderr, "error: unknown env subcommand %q\n", args[0])
+		os.Exit(2)
+	}
+
+	resp, err := requestServer(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	if !resp.Success {
+		fmt.Fprintln(os.Stderr, "error: "+resp.Stderr)
+		exit(resp.ExitCode)
+	}
+	fmt.Fprintln(os.Stdout, resp.Environment)
+}
+
 // ── invoke subcommand ────────────────────────────────────────────
 
 // runInvoke sends a command invocation to the running smallctl server.
@@ -242,15 +287,6 @@ func runInvoke(args []string) {
 		os.Exit(2)
 	}
 
-	binaryName := filepath.Base(os.Args[0])
-	paths := config.ResolveAppPaths(binaryName, "")
-	conn, err := net.Dial("unix", paths.SocketPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: server not running (socket %s)\n", paths.SocketPath)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
 	req := protocol.Request{
 		Type:    protocol.TypeCommand,
 		Command: commandName,
@@ -258,43 +294,14 @@ func runInvoke(args []string) {
 		Wait:    !*noWaitFlag,
 	}
 
-	payload, err := json.Marshal(req)
+	resp, err := requestServer(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error encoding request: %v\n", err)
-		os.Exit(1)
-	}
-	payload = append(payload, '\n')
-
-	if _, err := conn.Write(payload); err != nil {
-		fmt.Fprintf(os.Stderr, "error sending request: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
 	if *noWaitFlag {
 		os.Exit(0)
-	}
-
-	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
-		fmt.Fprintf(os.Stderr, "error setting read deadline: %v\n", err)
-		os.Exit(1)
-	}
-
-	respData, err := io.ReadAll(conn)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading response: %v\n", err)
-		os.Exit(1)
-	}
-
-	reason := strings.TrimSpace(string(respData))
-	if reason == "" {
-		fmt.Fprintln(os.Stderr, "error: empty response from server")
-		os.Exit(1)
-	}
-
-	var resp protocol.Response
-	if err := json.Unmarshal(respData, &resp); err != nil {
-		fmt.Fprintf(os.Stderr, "invalid response: %v\nbody: %s\n", err, reason)
-		os.Exit(1)
 	}
 
 	if resp.Success {
@@ -320,6 +327,45 @@ func runInvoke(args []string) {
 		fmt.Fprintf(os.Stderr, "Tried commands: %s\n", strings.Join(resp.Tried, "; "))
 	}
 	exit(resp.ExitCode)
+}
+
+func requestServer(req protocol.Request) (protocol.Response, error) {
+	binaryName := filepath.Base(os.Args[0])
+	paths := config.ResolveAppPaths(binaryName, "")
+	conn, err := net.Dial("unix", paths.SocketPath)
+	if err != nil {
+		return protocol.Response{}, fmt.Errorf("server not running (socket %s): %w", paths.SocketPath, err)
+	}
+	defer conn.Close()
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return protocol.Response{}, fmt.Errorf("encoding request: %w", err)
+	}
+	payload = append(payload, '\n')
+	if _, err := conn.Write(payload); err != nil {
+		return protocol.Response{}, fmt.Errorf("sending request: %w", err)
+	}
+	if !req.Wait {
+		return protocol.Response{}, nil
+	}
+
+	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		return protocol.Response{}, fmt.Errorf("setting read deadline: %w", err)
+	}
+	respData, err := io.ReadAll(conn)
+	if err != nil {
+		return protocol.Response{}, fmt.Errorf("reading response: %w", err)
+	}
+	if reason := strings.TrimSpace(string(respData)); reason == "" {
+		return protocol.Response{}, errors.New("empty response from server")
+	}
+
+	var resp protocol.Response
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return protocol.Response{}, fmt.Errorf("invalid response: %w (body: %s)", err, strings.TrimSpace(string(respData)))
+	}
+	return resp, nil
 }
 
 // ── Utility helpers ─────────────────────────────────────────────
