@@ -90,7 +90,37 @@ func TestAllowsPreviewEditsForSplitConfiguration(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 	if !strings.Contains(response.Body.String(), "No configuration files were changed") {
-		t.Fatalf("expected in-memory preview explanation, got: %s", response.Body.String())
+		t.Fatalf("expected in-memory builder explanation, got: %s", response.Body.String())
+	}
+}
+
+func TestDownloadReturnsOneCompleteYAMLFile(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("options:\n  shell: sh\ncommands:\n  brightnessIncrease:\n    description: Increase brightness\n    args:\n      step: \"5\"\n"), 0o600); err != nil {
+		t.Fatalf("creating main config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "noctalia.yaml"), []byte("commands:\n  brightnessIncrease: noctalia msg brightness-up\n"), 0o600); err != nil {
+		t.Fatalf("creating environment config: %v", err)
+	}
+
+	app := New(configPath)
+	response := httptest.NewRecorder()
+	app.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/download", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Disposition"); got != `attachment; filename="smallctl-config.yaml"` {
+		t.Fatalf("Content-Disposition = %q", got)
+	}
+	for _, text := range []string{"options:", "commands:", "brightnessIncrease:", "noctalia: noctalia msg brightness-up"} {
+		if !strings.Contains(response.Body.String(), text) {
+			t.Fatalf("download is missing %q: %s", text, response.Body.String())
+		}
+	}
+	if got, err := os.ReadFile(configPath); err != nil || !strings.Contains(string(got), "shell: sh") {
+		t.Fatalf("source configuration was changed or unreadable: %v, %q", err, got)
 	}
 }
 

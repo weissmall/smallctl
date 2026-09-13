@@ -31,6 +31,7 @@
       .theme-switcher button { margin: 0; padding: .35rem .6rem; border-radius: .3rem; background: transparent; color: var(--muted); } .theme-switcher button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
       .muted { color: var(--muted); } .path { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
       section, article { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--card); }
+      .builder-info { display: flex; align-items: center; gap: .85rem; margin-top: 1rem; padding: .85rem 1rem; border: 1px solid var(--border); border-radius: .65rem; background: var(--subtle); } .builder-info-icon { display: grid; place-items: center; flex: 0 0 auto; width: 1.4rem; height: 1.4rem; border: 1px solid var(--foreground); border-radius: 50%; font: 700 .88rem ui-serif, serif; } .builder-info-copy { min-width: 0; flex: 1; } .builder-info-copy strong { font-size: .9rem; } .builder-info-copy p { margin: .2rem 0 0; color: var(--muted); font-size: .84rem; } .builder-info form, .builder-info button { margin: 0; } .builder-info button { white-space: nowrap; }
       .notice { margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--subtle); color: var(--foreground); }
       .warning, .error { background: var(--subtle); color: var(--foreground); }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
@@ -74,19 +75,21 @@
       .environment-row.active, .environment-row.active:hover { background: var(--active); } .active-tag { margin-left: .45rem; padding: .1rem .35rem; border: 1px solid var(--input-border); border-radius: 999px; background: var(--foreground); color: var(--background); font: 700 .68rem ui-sans-serif, sans-serif; text-transform: uppercase; }
       .form-label { display: block; margin-top: 1rem; color: var(--subtle-foreground); font-size: .9rem; }
       dialog { width: min(540px, calc(100% - 2rem)); border: 1px solid var(--foreground); border-radius: .75rem; padding: 1.25rem; background: var(--card); color: var(--foreground); box-shadow: 0 20px 60px #000a; } dialog::backdrop { background: #0009; } dialog h2 { margin-bottom: .5rem; } dialog pre { max-height: 16rem; overflow: auto; padding: .75rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--background); color: var(--foreground); white-space: pre-wrap; } dialog form { text-align: right; }
-      @media (max-width: 620px) { .page-header { align-items: stretch; flex-direction: column; } .theme-switcher { width: fit-content; } .active-environment { align-items: flex-start; flex-direction: column; gap: .35rem; } .setting-row { grid-template-columns: 1fr; gap: .6rem; } .test-control { align-items: stretch; flex-direction: column; } .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .environment-list { font-size: .84rem; } .environment-list th, .environment-list td { padding: .55rem .4rem; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } .spoiler-summary { padding: 1rem; } .spoiler-content { padding: 0 1rem 1rem; } .command-summary { grid-template-columns: minmax(0, 1fr) auto; } .command-preview { grid-column: 1 / -1; grid-row: 2; } }
+      @media (max-width: 620px) { .page-header { align-items: stretch; flex-direction: column; } .theme-switcher { width: fit-content; } .builder-info { align-items: flex-start; flex-wrap: wrap; } .builder-info form { width: 100%; } .builder-info button { width: 100%; } .active-environment { align-items: flex-start; flex-direction: column; gap: .35rem; } .setting-row { grid-template-columns: 1fr; gap: .6rem; } .test-control { align-items: stretch; flex-direction: column; } .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .environment-list { font-size: .84rem; } .environment-list th, .environment-list td { padding: .55rem .4rem; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } .spoiler-summary { padding: 1rem; } .spoiler-content { padding: 0 1rem 1rem; } .command-summary { grid-template-columns: minmax(0, 1fr) auto; } .command-preview { grid-column: 1 / -1; grid-row: 2; } }
       @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
     </style>
   </head>
   <body>
     <header>
       <div class="page-header"><h1>smallctl configuration</h1><div class="theme-switcher" role="group" aria-label="Color theme"><button type="button" data-set-theme="light" aria-pressed="false">Light</button><button type="button" data-set-theme="dark" aria-pressed="false">Dark</button></div></div>
-      <p class="muted">Explore commands as concepts, not YAML files. This preview never writes configuration files.</p>
+      <p class="muted">Build a complete configuration without managing split files.</p>
       <p class="path">{{.ConfigPath}}</p>
     </header>
 
     <div id="notice">{{if .Notice}}{{template "notice" (dict "Message" .Notice)}}{{end}}</div>
     <div id="test-result"></div>
+
+    <aside class="builder-info" aria-label="Configuration builder information"><span class="builder-info-icon" aria-hidden="true">i</span><div class="builder-info-copy"><strong>Your source configuration stays unchanged.</strong><p>Existing configuration is loaded as a starting point. Changes remain in this builder until you download one complete YAML file and place it where you want.</p></div><form action="/download" method="get"><button type="submit">Download YAML</button></form></aside>
 
     <div class="active-environment"><strong>Active environment</strong>{{if .ActiveEnvironment.Name}}<code>{{.ActiveEnvironment.Name}}</code>{{else}}<span>None</span>{{end}}<span>{{.ActiveEnvironment.Source}}</span></div>
 
@@ -103,7 +106,7 @@
           <div class="setting-row"><div class="setting-name"><strong>Log file</strong><span>Optional destination for server logs.</span></div><input name="log_file" value="{{.Config.Options.LogFile}}" placeholder="Optional path"></div>
           <div class="setting-row"><div class="setting-name"><strong>Notifications</strong><span>Choose when desktop notifications are shown.</span></div><select name="notify"><option value="off" {{if eq .Config.Options.Notify "off"}}selected{{end}}>Off</option><option value="error" {{if eq .Config.Options.Notify "error"}}selected{{end}}>On errors</option><option value="all" {{if eq .Config.Options.Notify "all"}}selected{{end}}>Always</option></select></div>
         </div>
-            <button type="submit">Save preview</button>
+            <button type="submit">Save in builder</button>
           </form>
         </div>
       </details>
@@ -152,7 +155,7 @@
     <div class="spoiler-content">
       <form hx-post="/commands/{{.Name}}" hx-target="#notice" hx-swap="innerHTML">
         {{template "command-fields" .}}
-        <button type="submit">Save preview</button>
+        <button type="submit">Save in builder</button>
         <button class="danger" type="button" hx-delete="/commands/{{.Name}}" hx-target="#command-{{.Name}}" hx-swap="outerHTML" hx-confirm="Delete {{.Name}}?">Delete</button>
       </form>
     </div>
@@ -197,7 +200,7 @@
 <table id="environment-list" class="environment-list">
   <thead><tr><th>Name</th><th>Configuration</th><th>Active</th><th></th></tr></thead>
   <tbody>{{range .}}
-    <tr><td><code>{{.Name}}</code></td><td><span class="status {{.StatusClass}}">{{.Configuration}}</span></td><td>{{if .Active}}<span class="active-tag">active</span>{{else}}—{{end}}</td><td><button class="danger compact" type="button" hx-delete="/environments/{{.Name}}" hx-target="#environment-list" hx-swap="outerHTML" hx-confirm="Remove {{.Name}} and its command entries from this preview?">Remove</button></td></tr>
+    <tr><td><code>{{.Name}}</code></td><td><span class="status {{.StatusClass}}">{{.Configuration}}</span></td><td>{{if .Active}}<span class="active-tag">active</span>{{else}}—{{end}}</td><td><button class="danger compact" type="button" hx-delete="/environments/{{.Name}}" hx-target="#environment-list" hx-swap="outerHTML" hx-confirm="Remove {{.Name}} and its command entries from this builder?">Remove</button></td></tr>
   {{else}}<tr><td colspan="4" class="muted">No prepared environments yet. Add systems such as <code>dms</code> or <code>laptop</code>.</td></tr>{{end}}</tbody>
 </table>
 {{end}}

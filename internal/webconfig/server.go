@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 
 	"smallctl/internal/config"
 	"smallctl/internal/general"
@@ -25,8 +26,8 @@ import (
 var validName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 // Server owns a Gin handler and an in-memory configuration draft. The draft is
-// deliberately never written to disk: this UI iteration is safe to explore
-// against both single-file and split-file configurations.
+// deliberately never written to disk: users can download it as one complete
+// YAML file and decide how to install it themselves.
 type Server struct {
 	configPath string
 	router     *gin.Engine
@@ -41,6 +42,7 @@ func New(configPath string) *Server {
 	s.router.SetHTMLTemplate(ginTemplate)
 	s.router.Use(gin.Recovery())
 	s.router.GET("/", s.index)
+	s.router.GET("/download", s.download)
 	s.router.GET("/partials/arg-row", s.argRow)
 	s.router.GET("/partials/fallback-row", s.fallbackRow)
 	s.router.POST("/environment-test", s.testEnvironment)
@@ -115,6 +117,23 @@ func (s *Server) index(c *gin.Context) {
 		return
 	}
 	c.HTML(http.StatusOK, "page", s.view(cfg, ""))
+}
+
+// download returns the current in-memory draft as one complete YAML file.
+// It deliberately does not write to the configured path or any sibling files.
+func (s *Server) download(c *gin.Context) {
+	cfg, err := s.load()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Could not prepare the configuration download: %v", err)
+		return
+	}
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Could not encode the configuration download: %v", err)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="smallctl-config.yaml"`)
+	c.Data(http.StatusOK, "application/x-yaml; charset=utf-8", data)
 }
 
 func (s *Server) argRow(c *gin.Context) {
@@ -197,7 +216,7 @@ func (s *Server) updateOptions(c *gin.Context) {
 		return
 	}
 	c.Header("HX-Refresh", "true")
-	s.notice(c, http.StatusOK, "Global settings saved to this in-memory preview. No configuration files were changed.")
+	s.notice(c, http.StatusOK, "Global settings saved in this builder. No configuration files were changed.")
 }
 
 func (s *Server) createEnvironment(c *gin.Context) {
@@ -316,7 +335,7 @@ func (s *Server) updateCommand(c *gin.Context) {
 		return
 	}
 	c.Header("HX-Refresh", "true")
-	s.notice(c, http.StatusOK, fmt.Sprintf("%s saved to this in-memory preview. No configuration files were changed.", name))
+	s.notice(c, http.StatusOK, fmt.Sprintf("%s saved in this builder. No configuration files were changed.", name))
 }
 
 func (s *Server) deleteCommand(c *gin.Context) {
