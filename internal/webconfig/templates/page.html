@@ -6,73 +6,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>smallctl configuration</title>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzDeK9iEGTc" crossorigin="anonymous"></script>
+    <script>
+      (() => {
+        const key = "smallctl-theme";
+        const setTheme = (theme) => {
+          document.documentElement.dataset.theme = theme;
+          try { localStorage.setItem(key, theme); } catch (_) {}
+          document.querySelectorAll("[data-set-theme]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.setTheme === theme)));
+        };
+        try { setTheme(localStorage.getItem(key) || "dark"); } catch (_) { setTheme("dark"); }
+        document.addEventListener("DOMContentLoaded", () => setTheme(document.documentElement.dataset.theme || "dark"));
+        document.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-set-theme]");
+          if (button) setTheme(button.dataset.setTheme);
+        });
+      })();
+    </script>
     <style>
-      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #111827; color: #e5e7eb; }
-      body { max-width: 1080px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+      :root { color-scheme: dark; --background: #000; --foreground: #fafafa; --card: #09090b; --muted: #a1a1aa; --border: #27272a; --input: #000; --input-border: #3f3f46; --subtle: #18181b; --subtle-foreground: #d4d4d8; --primary: #fafafa; --primary-foreground: #09090b; --active: #18181b; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--background); color: var(--foreground); }
+      :root[data-theme="light"] { color-scheme: light; --background: #fff; --foreground: #09090b; --card: #fff; --muted: #71717a; --border: #e4e4e7; --input: #fff; --input-border: #d4d4d8; --subtle: #f4f4f5; --subtle-foreground: #27272a; --primary: #09090b; --primary-foreground: #fafafa; --active: #f4f4f5; }
+      body { max-width: 1080px; margin: 0 auto; padding: 2rem 1rem 4rem; background: var(--background); color: var(--foreground); }
       h1 { margin-bottom: .25rem; } h2 { margin: 0; font-size: 1.15rem; }
-      .muted { color: #9ca3af; } .path { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
-      section, article { margin-top: 1rem; padding: 1.25rem; border: 1px solid #374151; border-radius: .75rem; background: #1f2937; }
-      .notice { margin-top: 1rem; padding: .8rem 1rem; border-radius: .5rem; background: #064e3b; color: #d1fae5; }
-      .warning { background: #78350f; color: #fef3c7; } .error { background: #7f1d1d; color: #fee2e2; }
+      .page-header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; } .theme-switcher { display: flex; padding: .2rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--subtle); }
+      .theme-switcher button { margin: 0; padding: .35rem .6rem; border-radius: .3rem; background: transparent; color: var(--muted); } .theme-switcher button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+      .muted { color: var(--muted); } .path { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+      section, article { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--card); }
+      .notice { margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--subtle); color: var(--foreground); }
+      .warning, .error { background: var(--subtle); color: var(--foreground); }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
-      label { display: grid; gap: .35rem; color: #d1d5db; font-size: .9rem; }
-      input, select, textarea { width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid #4b5563; border-radius: .4rem; background: #111827; color: inherit; font: inherit; }
+      label { display: grid; gap: .35rem; color: var(--subtle-foreground); font-size: .9rem; }
+      input, select, textarea { width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid var(--input-border); border-radius: .4rem; background: var(--input); color: var(--foreground); font: inherit; }
       textarea { min-height: 5.5rem; resize: vertical; font-family: ui-monospace, monospace; font-size: .84rem; }
-      button { margin-top: 1rem; padding: .6rem .9rem; border: 0; border-radius: .4rem; background: #2563eb; color: white; font: inherit; cursor: pointer; }
-      button.secondary { background: #374151; } button.compact { margin: 0; padding: .35rem .6rem; font-size: .82rem; }
-      button.danger { background: #b91c1c; margin-left: .5rem; } button:disabled { cursor: not-allowed; opacity: .5; }
+      button { margin-top: 1rem; padding: .6rem .9rem; border: 1px solid var(--primary); border-radius: .4rem; background: var(--primary); color: var(--primary-foreground); font: inherit; cursor: pointer; }
+      button.secondary { border-color: var(--input-border); background: var(--subtle); color: var(--foreground); } button.compact { margin: 0; padding: .35rem .6rem; font-size: .82rem; }
+      button.danger { border-color: var(--input-border); background: transparent; color: var(--foreground); margin-left: .5rem; } button:disabled { cursor: not-allowed; opacity: .5; }
       .commands { display: grid; gap: 1rem; margin-top: 1rem; } .command-title { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
-      .command-title code { font-size: 1rem; color: #bfdbfe; } .help { margin: .35rem 0 0; font-size: .8rem; color: #9ca3af; }
+      .command-title code { font-size: 1rem; color: var(--foreground); } .help { margin: .35rem 0 0; font-size: .8rem; color: var(--muted); }
+      .active-environment { display: flex; align-items: center; gap: .65rem; margin-top: 1rem; padding: .8rem 1rem; border: 1px solid var(--foreground); border-radius: .65rem; background: var(--subtle); color: var(--foreground); }
+      .active-environment strong { color: var(--foreground); } .active-environment code { padding: .16rem .45rem; border-radius: .3rem; background: var(--background); color: var(--foreground); }
+      .setting-list { margin-top: 1rem; border-top: 1px solid var(--border); } .setting-row { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(260px, 1.2fr); gap: 1rem; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border); }
+      .setting-name { display: grid; gap: .25rem; } .setting-name strong { font-size: .92rem; } .setting-name span { color: var(--muted); font-size: .8rem; }
+      .setting-row input, .setting-row select { margin: 0; }
+      .test-control { display: flex; gap: .6rem; align-items: center; } .test-control input { flex: 1; } .test-control button { margin: 0; white-space: nowrap; }
       .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; } .section-heading p { margin: .25rem 0 0; }
-      .environment-list { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1rem 0; }
-      .environment { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem .35rem .7rem; border: 1px solid #475569; border-radius: 999px; background: #172033; }
-      .environment code { color: #bfdbfe; } .tag { padding: .1rem .4rem; border-radius: 999px; background: #334155; color: #cbd5e1; font-size: .72rem; }
+      .environment-list { width: 100%; margin-top: 1rem; border-collapse: collapse; overflow: hidden; border: 1px solid var(--border); border-radius: .55rem; }
+      .environment-list th, .environment-list td { padding: .65rem .75rem; text-align: left; border-top: 1px solid var(--border); } .environment-list th { border-top: 0; background: var(--subtle); color: var(--subtle-foreground); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+      .environment-list code { color: var(--foreground); } .status { display: inline-block; padding: .14rem .42rem; border-radius: 999px; border: 1px solid var(--input-border); background: var(--subtle); color: var(--foreground); font-size: .76rem; } .status.complete, .status.partial { background: var(--subtle); color: var(--foreground); }
       .environment-form { max-width: 480px; } .environment-form fieldset { display: flex; width: 100%; gap: .6rem; align-items: end; margin: 0; padding: 0; border: 0; } .environment-form label { flex: 1; }
-      .properties { margin-top: 1rem; border: 1px solid #475569; border-radius: .55rem; overflow: hidden; background: #172033; }
+      .properties { margin-top: 1rem; border: 1px solid var(--border); border-radius: .55rem; overflow: hidden; background: var(--subtle); }
       .properties-header, .property-row { display: grid; grid-template-columns: minmax(130px, .7fr) minmax(180px, 1.5fr); gap: .6rem; padding: .5rem .65rem; }
-      .properties-header { background: #273449; color: #cbd5e1; font-size: .76rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
-      .property-row { border-top: 1px solid #334155; } .property-row input { padding: .45rem .55rem; }
-      .environment-table { margin-top: 1rem; border: 1px solid #475569; border-radius: .55rem; overflow: hidden; }
-      .environment-row { display: grid; grid-template-columns: minmax(130px, .55fr) minmax(220px, 1.75fr); gap: .7rem; align-items: center; padding: .6rem .7rem; border-top: 1px solid #334155; }
-      .environment-row:first-child { border-top: 0; } .environment-row code { color: #bfdbfe; } .environment-row input { padding: .5rem .6rem; font-family: ui-monospace, monospace; font-size: .84rem; }
-      .form-label { display: block; margin-top: 1rem; color: #d1d5db; font-size: .9rem; }
-      @media (max-width: 620px) { .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } }
+      .properties-header { background: var(--background); color: var(--subtle-foreground); font-size: .76rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+      .property-row { border-top: 1px solid var(--border); } .property-row input { padding: .45rem .55rem; }
+      .properties.single-column .properties-header, .properties.single-column .property-row { grid-template-columns: 1fr; }
+      .field-heading { display: flex; align-items: baseline; gap: .65rem; margin-top: 1rem; } .field-heading h3 { margin: 0; font-size: .95rem; } .field-heading span { color: var(--muted); font-size: .8rem; }
+      .environment-table { margin-top: 1rem; border: 1px solid var(--border); border-radius: .55rem; overflow: hidden; }
+      .environment-row { display: grid; grid-template-columns: minmax(130px, .55fr) minmax(220px, 1.75fr); gap: .7rem; align-items: center; padding: .6rem .7rem; border-top: 1px solid var(--border); }
+      .environment-row:first-child { border-top: 0; } .environment-row code { color: var(--foreground); } .environment-row input { padding: .5rem .6rem; font-family: ui-monospace, monospace; font-size: .84rem; }
+      .environment-row.active { background: var(--active); } .active-tag { margin-left: .45rem; padding: .1rem .35rem; border: 1px solid var(--input-border); border-radius: 999px; background: var(--foreground); color: var(--background); font: 700 .68rem ui-sans-serif, sans-serif; text-transform: uppercase; }
+      .form-label { display: block; margin-top: 1rem; color: var(--subtle-foreground); font-size: .9rem; }
+      dialog { width: min(540px, calc(100% - 2rem)); border: 1px solid var(--foreground); border-radius: .75rem; padding: 1.25rem; background: var(--card); color: var(--foreground); box-shadow: 0 20px 60px #000a; } dialog::backdrop { background: #0009; } dialog h2 { margin-bottom: .5rem; } dialog pre { max-height: 16rem; overflow: auto; padding: .75rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--background); color: var(--foreground); white-space: pre-wrap; } dialog form { text-align: right; }
+      @media (max-width: 620px) { .page-header { align-items: stretch; flex-direction: column; } .theme-switcher { width: fit-content; } .active-environment { align-items: flex-start; flex-direction: column; gap: .35rem; } .setting-row { grid-template-columns: 1fr; gap: .6rem; } .test-control { align-items: stretch; flex-direction: column; } .environment-form fieldset { display: block; } .environment-form button { width: 100%; } .environment-list { font-size: .84rem; } .environment-list th, .environment-list td { padding: .55rem .4rem; } .properties-header { display: none; } .property-row, .environment-row { grid-template-columns: 1fr; gap: .35rem; } }
     </style>
   </head>
   <body>
     <header>
-      <h1>smallctl configuration</h1>
-      <p class="muted">Edit commands as concepts, not YAML files. Changes are written atomically to:</p>
+      <div class="page-header"><h1>smallctl configuration</h1><div class="theme-switcher" role="group" aria-label="Color theme"><button type="button" data-set-theme="light" aria-pressed="false">Light</button><button type="button" data-set-theme="dark" aria-pressed="false">Dark</button></div></div>
+      <p class="muted">Explore commands as concepts, not YAML files. This preview never writes configuration files.</p>
       <p class="path">{{.ConfigPath}}</p>
     </header>
 
     <div id="notice">{{if .Notice}}{{template "notice" (dict "Message" .Notice)}}{{end}}</div>
+    <div id="test-result"></div>
 
-    {{if .ReadOnly}}
-      <div class="notice warning">This directory has additional YAML configuration files. This PoC keeps it read-only so it cannot create duplicate environment entries. Consolidate the configuration into this main file to enable editing.</div>
-    {{end}}
+    <div class="active-environment"><strong>Active environment</strong>{{if .ActiveEnvironment.Name}}<code>{{.ActiveEnvironment.Name}}</code>{{else}}<span>None</span>{{end}}<span>{{.ActiveEnvironment.Source}}</span></div>
 
     <section>
       <h2>Global settings</h2>
       <form hx-post="/options" hx-target="#notice" hx-swap="innerHTML">
-        <fieldset {{if .ReadOnly}}disabled{{end}}>
-          <div class="grid">
-            <label>Environment command<input name="env_command" value="{{.Config.Options.EnvCommand}}" placeholder="hostname"></label>
-            <label>Shell<input name="shell" value="{{.Config.Options.Shell}}" placeholder="bash" required></label>
-            <label>Timeout (seconds, 0 means no timeout)<input type="number" min="0" name="timeout" value="{{if .Config.Options.Timeout}}{{.Config.Options.Timeout}}{{end}}"></label>
-            <label>Log level (0–5)<input type="number" min="0" max="5" name="log_level" value="{{if .Config.Options.LogLevel}}{{.Config.Options.LogLevel}}{{end}}"></label>
-            <label>Log file<input name="log_file" value="{{.Config.Options.LogFile}}" placeholder="Optional path"></label>
-            <label>Notifications<select name="notify"><option value="off" {{if eq .Config.Options.Notify "off"}}selected{{end}}>Off</option><option value="error" {{if eq .Config.Options.Notify "error"}}selected{{end}}>On errors</option><option value="all" {{if eq .Config.Options.Notify "all"}}selected{{end}}>Always</option></select></label>
-          </div>
-          <button type="submit">Save global settings</button>
-        </fieldset>
+        <div class="setting-list">
+          <div class="setting-row"><div class="setting-name"><strong>Environment command</strong><span>Determines the active environment when it returns a name.</span></div><div class="test-control"><input name="env_command" value="{{.Config.Options.EnvCommand}}" placeholder="hostname"><button class="secondary" type="button" hx-post="/environment-test" hx-include="closest form" hx-target="#test-result" hx-swap="outerHTML">Test command</button></div></div>
+          <div class="setting-row"><div class="setting-name"><strong>Shell</strong><span>Used for command execution and environment resolution.</span></div><input name="shell" value="{{.Config.Options.Shell}}" placeholder="bash" required></div>
+          <div class="setting-row"><div class="setting-name"><strong>Timeout</strong><span>Seconds per command. Use 0 for no timeout.</span></div><input type="number" min="0" step="1" inputmode="numeric" name="timeout" value="{{if .Config.Options.Timeout}}{{.Config.Options.Timeout}}{{end}}"></div>
+          <div class="setting-row"><div class="setting-name"><strong>Log level</strong><span>0 is quiet; 5 is the most verbose.</span></div><select name="log_level"><option value="" {{if not .Config.Options.LogLevel}}selected{{end}}>Default (3)</option><option value="0" {{if isLogLevel .Config.Options.LogLevel 0}}selected{{end}}>0 — quiet</option><option value="1" {{if isLogLevel .Config.Options.LogLevel 1}}selected{{end}}>1 — errors</option><option value="2" {{if isLogLevel .Config.Options.LogLevel 2}}selected{{end}}>2 — warnings</option><option value="3" {{if isLogLevel .Config.Options.LogLevel 3}}selected{{end}}>3 — info</option><option value="4" {{if isLogLevel .Config.Options.LogLevel 4}}selected{{end}}>4 — debug</option><option value="5" {{if isLogLevel .Config.Options.LogLevel 5}}selected{{end}}>5 — verbose</option></select></div>
+          <div class="setting-row"><div class="setting-name"><strong>Log file</strong><span>Optional destination for server logs.</span></div><input name="log_file" value="{{.Config.Options.LogFile}}" placeholder="Optional path"></div>
+          <div class="setting-row"><div class="setting-name"><strong>Notifications</strong><span>Choose when desktop notifications are shown.</span></div><select name="notify"><option value="off" {{if eq .Config.Options.Notify "off"}}selected{{end}}>Off</option><option value="error" {{if eq .Config.Options.Notify "error"}}selected{{end}}>On errors</option><option value="all" {{if eq .Config.Options.Notify "all"}}selected{{end}}>Always</option></select></div>
+        </div>
+        <button type="submit">Save preview</button>
       </form>
     </section>
 
     <section>
       <div class="section-heading"><div><h2>Prepared environments</h2><p class="muted">Set these up once, then every command gets a clear command field for each environment.</p></div></div>
       <form class="environment-form" hx-post="/environments" hx-target="#environment-list" hx-swap="outerHTML">
-        <fieldset {{if .ReadOnly}}disabled{{end}}>
+        <fieldset>
           <label>Environment name<input name="environment" placeholder="dms" required pattern="[A-Za-z0-9_.-]+"></label>
           <button type="submit">Add environment</button>
         </fieldset>
@@ -83,7 +109,7 @@
     <section>
       <h2>Add a command</h2>
       <form hx-post="/commands" hx-target="#command-list" hx-swap="beforeend">
-        <fieldset {{if .ReadOnly}}disabled{{end}}>
+        <fieldset>
           {{template "command-fields" .NewCommand}}
           <button type="submit">Add command</button>
         </fieldset>
@@ -99,10 +125,10 @@
 
 {{define "command"}}
 <article id="command-{{.Name}}">
-  <div class="command-title"><h2><code>{{.Name}}</code></h2><span class="muted">Named command</span></div>
+  <div class="command-title"><h2><code>{{.Name}}</code></h2>{{if .ActiveEnvironment}}<span class="active-tag">active: {{.ActiveEnvironment}}</span>{{else}}<span class="muted">No active environment</span>{{end}}</div>
   <form hx-post="/commands/{{.Name}}" hx-target="#notice" hx-swap="innerHTML">
     {{template "command-fields" .}}
-    <button type="submit">Save command</button>
+    <button type="submit">Save preview</button>
     <button class="danger" type="button" hx-delete="/commands/{{.Name}}" hx-target="#command-{{.Name}}" hx-swap="outerHTML" hx-confirm="Delete {{.Name}}?">Delete</button>
   </form>
 </article>
@@ -113,32 +139,50 @@
   {{if .Name}}<input type="hidden" name="name" value="{{.Name}}">{{else}}<label>Command name<input name="name" placeholder="volumeUp" required pattern="[A-Za-z0-9_.-]+"></label>{{end}}
   <label>Description<input name="description" value="{{.Description}}" placeholder="Human-friendly explanation"></label>
 </div>
+<div class="field-heading"><h3>Arguments</h3><span>Default values available as <code>${name}</code>.</span></div>
 <div class="properties">
   <div class="properties-header"><span>Property</span><span>Default value</span></div>
   <div id="arguments-{{if .Name}}{{.Name}}{{else}}new{{end}}">{{range .ArgRows}}{{template "arg-row" .}}{{end}}</div>
 </div>
 <button class="secondary compact" type="button" hx-get="/partials/arg-row" hx-target="#arguments-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add property</button>
-<span class="help">Arguments act like front matter: values can be referenced as <code>${name}</code> in commands.</span>
+<span class="help">Add only the properties this command needs.</span>
 
 <label class="form-label">Environment commands</label>
 <div class="environment-table">
   {{range .EnvironmentRows}}
-    <div class="environment-row"><code>{{.Name}}</code><input type="hidden" name="environment_name" value="{{.Name}}"><input name="environment_command" value="{{.Command}}" placeholder="Command for {{.Name}}"></div>
+    <div class="environment-row {{if .Active}}active{{end}}"><div><code>{{.Name}}</code>{{if .Active}}<span class="active-tag">active</span>{{end}}</div><input type="hidden" name="environment_name" value="{{.Name}}"><input name="environment_command" value="{{.Command}}" placeholder="Command for {{.Name}}"></div>
   {{else}}
     <div class="environment-row"><span class="muted">No environments prepared yet.</span><span class="muted">Add one above, then return here to configure it.</span></div>
   {{end}}
 </div>
-<label class="form-label">Fallback commands<textarea name="fallback" placeholder="amixer sset Master 5%+">{{.FallbackText}}</textarea><span class="help">One shell command per line, tried in order.</span></label>
+<div class="field-heading"><h3>Fallback commands</h3><span>Tried in order when the active environment has no command or fails.</span></div>
+<div class="properties single-column">
+  <div class="properties-header"><span>Shell command</span></div>
+  <div id="fallbacks-{{if .Name}}{{.Name}}{{else}}new{{end}}">{{range .FallbackRows}}{{template "fallback-row" .}}{{end}}</div>
+</div>
+<button class="secondary compact" type="button" hx-get="/partials/fallback-row" hx-target="#fallbacks-{{if .Name}}{{.Name}}{{else}}new{{end}}" hx-swap="beforeend">+ Add fallback command</button>
 {{end}}
 
 {{define "arg-row"}}<div class="property-row"><input name="args_key" value="{{.Key}}" placeholder="property"><input name="args_value" value="{{.Value}}" placeholder="value"></div>{{end}}
 
+{{define "fallback-row"}}<div class="property-row"><input name="fallback_command" value="{{.Command}}" placeholder="Shell command"></div>{{end}}
+
 {{define "environment-list"}}
-<div id="environment-list" class="environment-list">
-  {{range .}}
-    <div class="environment"><code>{{.Name}}</code>{{if .Preset}}<span class="tag">prepared</span>{{end}}{{if .InUse}}<span class="tag">in use</span>{{end}}{{if .Preset}}<button class="danger compact" type="button" hx-delete="/environments/{{.Name}}" hx-target="#environment-list" hx-swap="outerHTML" hx-confirm="Remove {{.Name}} from prepared environments? Existing command entries will be kept.">Remove</button>{{end}}</div>
-  {{else}}<p class="muted">No prepared environments yet. Add the systems you switch between, such as <code>dms</code> or <code>laptop</code>.</p>{{end}}
-</div>
+<table id="environment-list" class="environment-list">
+  <thead><tr><th>Name</th><th>Configuration</th><th>Active</th><th></th></tr></thead>
+  <tbody>{{range .}}
+    <tr><td><code>{{.Name}}</code></td><td><span class="status {{.StatusClass}}">{{.Configuration}}</span></td><td>{{if .Active}}<span class="active-tag">active</span>{{else}}—{{end}}</td><td><button class="danger compact" type="button" hx-delete="/environments/{{.Name}}" hx-target="#environment-list" hx-swap="outerHTML" hx-confirm="Remove {{.Name}} and its command entries from this preview?">Remove</button></td></tr>
+  {{else}}<tr><td colspan="4" class="muted">No prepared environments yet. Add systems such as <code>dms</code> or <code>laptop</code>.</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
+{{define "environment-test-result"}}
+<dialog id="test-result" open>
+  <h2>Environment command test</h2>
+  <p>{{.Message}}</p>
+  {{if .Output}}<pre>{{.Output}}</pre>{{end}}
+  <form method="dialog"><button type="submit">Close</button></form>
+</dialog>
 {{end}}
 
 {{define "notice"}}<div class="notice">{{.Message}}</div>{{end}}

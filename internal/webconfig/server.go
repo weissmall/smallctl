@@ -3,33 +3,35 @@
 package webconfig
 
 import (
+	"context"
 	"fmt"
-	"io/fs"
+	"maps"
 	"net/http"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
-	"gopkg.in/yaml.v3"
 
 	"smallctl/internal/config"
+	"smallctl/internal/general"
 )
 
 var validName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
-// Server owns a Gin handler for a single main configuration file.
-//
-// The PoC purposely only writes a standalone main config. A directory with
-// additional participating YAML files is displayed read-only, because writing
-// the merged configuration back to config.yaml would create duplicate env
-// definitions on the next reload.
+// Server owns a Gin handler and an in-memory configuration draft. The draft is
+// deliberately never written to disk: this UI iteration is safe to explore
+// against both single-file and split-file configurations.
 type Server struct {
 	configPath string
 	router     *gin.Engine
+	mu         sync.RWMutex
+	draft      *config.Config
 }
 
 // New creates the web configuration application for configPath.
@@ -40,6 +42,8 @@ func New(configPath string) *Server {
 	s.router.Use(gin.Recovery())
 	s.router.GET("/", s.index)
 	s.router.GET("/partials/arg-row", s.argRow)
+	s.router.GET("/partials/fallback-row", s.fallbackRow)
+	s.router.POST("/environment-test", s.testEnvironment)
 	s.router.POST("/options", s.updateOptions)
 	s.router.POST("/environments", s.createEnvironment)
 	s.router.DELETE("/environments/:name", s.deleteEnvironment)
@@ -53,21 +57,22 @@ func New(configPath string) *Server {
 func (s *Server) Handler() http.Handler { return s.router }
 
 type pageData struct {
-	ConfigPath   string
-	Config       *config.Config
-	Environments []environmentView
-	Commands     []commandView
-	NewCommand   commandView
-	ReadOnly     bool
-	Notice       string
+	ConfigPath        string
+	Config            *config.Config
+	ActiveEnvironment activeEnvironment
+	Environments      []environmentView
+	Commands          []commandView
+	NewCommand        commandView
+	Notice            string
 }
 
 type commandView struct {
 	Name string
 	config.Command
-	ArgRows         []frontMatterRow
-	EnvironmentRows []environmentCommandRow
-	FallbackText    string
+	ArgRows           []frontMatterRow
+	EnvironmentRows   []environmentCommandRow
+	FallbackRows      []fallbackRow
+	ActiveEnvironment string
 }
 
 type frontMatterRow struct {
@@ -78,12 +83,27 @@ type frontMatterRow struct {
 type environmentCommandRow struct {
 	Name    string
 	Command string
+	Active  bool
+}
+
+type fallbackRow struct{ Command string }
+
+type activeEnvironment struct {
+	Name   string
+	Source string
 }
 
 type environmentView struct {
-	Name   string
-	Preset bool
-	InUse  bool
+	Name          string
+	Configuration string
+	StatusClass   string
+	Active        bool
+}
+
+type environmentTestResult struct {
+	Success bool
+	Message string
+	Output  string
 }
 
 func (s *Server) index(c *gin.Context) {
@@ -99,8 +119,47 @@ func (s *Server) argRow(c *gin.Context) {
 	c.HTML(http.StatusOK, "arg-row", frontMatterRow{})
 }
 
+func (s *Server) fallbackRow(c *gin.Context) {
+	c.HTML(http.StatusOK, "fallback-row", fallbackRow{})
+}
+
+func (s *Server) testEnvironment(c *gin.Context) {
+	shell := strings.TrimSpace(c.PostForm("shell"))
+	command := strings.TrimSpace(c.PostForm("env_command"))
+	if shell == "" {
+		c.HTML(http.StatusBadRequest, "environment-test-result", environmentTestResult{Message: "Shell is required before the environment command can be tested."})
+		return
+	}
+	if command == "" {
+		c.HTML(http.StatusBadRequest, "environment-test-result", environmentTestResult{Message: "No environment command is configured. smallctl will use SMALLCTL_ENV when it is set."})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), general.EnvResolveTimeout)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, shell, "-c", command).CombinedOutput()
+	result := environmentTestResult{Output: strings.TrimSpace(string(output))}
+	if ctx.Err() == context.DeadlineExceeded {
+		result.Message = "The environment command timed out."
+		c.HTML(http.StatusGatewayTimeout, "environment-test-result", result)
+		return
+	}
+	if err != nil {
+		result.Message = "The environment command failed."
+		c.HTML(http.StatusBadRequest, "environment-test-result", result)
+		return
+	}
+	result.Success = true
+	if result.Output == "" {
+		result.Message = "The command succeeded but did not return an environment name."
+	} else {
+		result.Message = "The command succeeded. smallctl would use this environment name:"
+	}
+	c.HTML(http.StatusOK, "environment-test-result", result)
+}
+
 func (s *Server) updateOptions(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -135,11 +194,12 @@ func (s *Server) updateOptions(c *gin.Context) {
 		s.notice(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	s.notice(c, http.StatusOK, "Global settings saved. The running server will pick up supported changes automatically.")
+	c.Header("HX-Refresh", "true")
+	s.notice(c, http.StatusOK, "Global settings saved to this in-memory preview. No configuration files were changed.")
 }
 
 func (s *Server) createEnvironment(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -162,11 +222,11 @@ func (s *Server) createEnvironment(c *gin.Context) {
 		return
 	}
 	c.Header("HX-Refresh", "true")
-	c.HTML(http.StatusCreated, "environment-list", s.environmentViews(cfg))
+	c.HTML(http.StatusCreated, "environment-list", s.environmentViews(cfg, resolveActiveEnvironment(cfg).Name))
 }
 
 func (s *Server) deleteEnvironment(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -181,8 +241,15 @@ func (s *Server) deleteEnvironment(c *gin.Context) {
 		}
 		filtered = append(filtered, environment)
 	}
+	for commandName, command := range cfg.Commands {
+		if _, exists := command.Envs[name]; exists {
+			delete(command.Envs, name)
+			cfg.Commands[commandName] = command
+			found = true
+		}
+	}
 	if !found {
-		s.notice(c, http.StatusNotFound, fmt.Sprintf("Environment %q is not a prepared environment.", name))
+		s.notice(c, http.StatusNotFound, fmt.Sprintf("Environment %q does not exist.", name))
 		return
 	}
 	cfg.Options.Environments = filtered
@@ -191,11 +258,11 @@ func (s *Server) deleteEnvironment(c *gin.Context) {
 		return
 	}
 	c.Header("HX-Refresh", "true")
-	c.HTML(http.StatusOK, "environment-list", s.environmentViews(cfg))
+	c.HTML(http.StatusOK, "environment-list", s.environmentViews(cfg, resolveActiveEnvironment(cfg).Name))
 }
 
 func (s *Server) createCommand(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -220,11 +287,13 @@ func (s *Server) createCommand(c *gin.Context) {
 		s.notice(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	c.HTML(http.StatusCreated, "command", s.commandView(name, command, environmentNames(cfg)))
+	active := resolveActiveEnvironment(cfg)
+	c.Header("HX-Refresh", "true")
+	c.HTML(http.StatusCreated, "command", s.commandView(name, command, environmentNames(cfg, active.Name), active.Name))
 }
 
 func (s *Server) updateCommand(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -244,11 +313,12 @@ func (s *Server) updateCommand(c *gin.Context) {
 		s.notice(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	s.notice(c, http.StatusOK, fmt.Sprintf("%s saved.", name))
+	c.Header("HX-Refresh", "true")
+	s.notice(c, http.StatusOK, fmt.Sprintf("%s saved to this in-memory preview. No configuration files were changed.", name))
 }
 
 func (s *Server) deleteCommand(c *gin.Context) {
-	cfg, err := s.editableConfig()
+	cfg, err := s.load()
 	if err != nil {
 		s.notice(c, http.StatusConflict, err.Error())
 		return
@@ -263,6 +333,7 @@ func (s *Server) deleteCommand(c *gin.Context) {
 		s.notice(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	c.Header("HX-Refresh", "true")
 	c.Status(http.StatusOK)
 }
 
@@ -275,7 +346,7 @@ func commandFromForm(c *gin.Context) (config.Command, error) {
 	if err != nil {
 		return config.Command{}, err
 	}
-	fallback := nonEmptyLines(c.PostForm("fallback"))
+	fallback := nonEmptyValues(c.PostFormArray("fallback_command"))
 	return config.Command{
 		Description: strings.TrimSpace(c.PostForm("description")),
 		Args:        args,
@@ -312,115 +383,80 @@ func parseFormPairs(keys, values []string, kind string, omitEmptyValue bool) (ma
 	return pairs, nil
 }
 
-func nonEmptyLines(value string) []string {
-	var lines []string
-	for _, line := range strings.Split(value, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
+func nonEmptyValues(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			result = append(result, value)
 		}
 	}
-	return lines
+	return result
 }
 
 func (s *Server) load() (*config.Config, error) {
+	s.mu.RLock()
+	if s.draft != nil {
+		draft := cloneConfig(s.draft)
+		s.mu.RUnlock()
+		return draft, nil
+	}
+	s.mu.RUnlock()
+
 	cfg, err := config.Load(s.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not load configuration: %w", err)
 	}
-	return cfg, nil
-}
-
-func (s *Server) editableConfig() (*config.Config, error) {
-	if s.hasAdditionalFiles() {
-		return nil, fmt.Errorf("This configuration uses additional YAML files. The PoC leaves it read-only to prevent duplicate environment definitions. Consolidate it into %s before editing here.", filepath.Base(s.configPath))
+	s.mu.Lock()
+	if s.draft == nil {
+		s.draft = cloneConfig(cfg)
 	}
-	return s.load()
-}
-
-func (s *Server) hasAdditionalFiles() bool {
-	entries, err := os.ReadDir(filepath.Dir(s.configPath))
-	if err != nil {
-		return false
-	}
-	mainName := filepath.Base(s.configPath)
-	for _, entry := range entries {
-		if entry.Type().IsRegular() && entry.Name() != mainName && entry.Name() != config.MainConfigName && strings.HasSuffix(entry.Name(), ".yaml") && !strings.HasPrefix(entry.Name(), ".") {
-			return true
-		}
-	}
-	return false
+	draft := cloneConfig(s.draft)
+	s.mu.Unlock()
+	return draft, nil
 }
 
 func (s *Server) save(cfg *config.Config) error {
 	if err := config.Validate(cfg); err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("encoding configuration: %w", err)
-	}
-	dir := filepath.Dir(s.configPath)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("creating configuration directory: %w", err)
-	}
-
-	mode := fs.FileMode(0o600)
-	if info, err := os.Stat(s.configPath); err == nil {
-		mode = info.Mode().Perm()
-	}
-	temp, err := os.CreateTemp(dir, ".smallctl-config-*.yaml")
-	if err != nil {
-		return fmt.Errorf("creating temporary configuration: %w", err)
-	}
-	tempName := temp.Name()
-	defer os.Remove(tempName)
-	if err := temp.Chmod(mode); err != nil {
-		_ = temp.Close()
-		return fmt.Errorf("setting temporary configuration permissions: %w", err)
-	}
-	if _, err := temp.Write(data); err != nil {
-		_ = temp.Close()
-		return fmt.Errorf("writing configuration: %w", err)
-	}
-	if err := temp.Close(); err != nil {
-		return fmt.Errorf("closing configuration: %w", err)
-	}
-	if err := os.Rename(tempName, s.configPath); err != nil {
-		return fmt.Errorf("replacing configuration: %w", err)
-	}
+	s.mu.Lock()
+	s.draft = cloneConfig(cfg)
+	s.mu.Unlock()
 	return nil
 }
 
 func (s *Server) view(cfg *config.Config, notice string) pageData {
-	environments := environmentNames(cfg)
+	active := resolveActiveEnvironment(cfg)
+	environments := environmentNames(cfg, active.Name)
 	commands := make([]commandView, 0, len(cfg.Commands))
 	for name, command := range cfg.Commands {
-		commands = append(commands, s.commandView(name, command, environments))
+		commands = append(commands, s.commandView(name, command, environments, active.Name))
 	}
 	sort.Slice(commands, func(i, j int) bool { return commands[i].Name < commands[j].Name })
 	return pageData{
-		ConfigPath:   s.configPath,
-		Config:       cfg,
-		Environments: s.environmentViews(cfg),
-		Commands:     commands,
-		NewCommand:   s.commandView("", config.Command{}, environments),
-		ReadOnly:     s.hasAdditionalFiles(),
-		Notice:       notice,
+		ConfigPath:        s.configPath,
+		Config:            cfg,
+		ActiveEnvironment: active,
+		Environments:      s.environmentViews(cfg, active.Name),
+		Commands:          commands,
+		NewCommand:        s.commandView("", config.Command{}, environments, active.Name),
+		Notice:            notice,
 	}
 }
 
-func (s *Server) commandView(name string, command config.Command, environments []string) commandView {
+func (s *Server) commandView(name string, command config.Command, environments []string, activeEnvironment string) commandView {
 	args := mapRows(command.Args, 2)
 	environmentRows := make([]environmentCommandRow, 0, len(environments))
 	for _, environment := range environments {
-		environmentRows = append(environmentRows, environmentCommandRow{Name: environment, Command: command.Envs[environment]})
+		environmentRows = append(environmentRows, environmentCommandRow{Name: environment, Command: command.Envs[environment], Active: environment == activeEnvironment})
 	}
 	return commandView{
-		Name:            name,
-		Command:         command,
-		ArgRows:         args,
-		EnvironmentRows: environmentRows,
-		FallbackText:    strings.Join(command.Fallback, "\n"),
+		Name:              name,
+		Command:           command,
+		ArgRows:           args,
+		EnvironmentRows:   environmentRows,
+		FallbackRows:      fallbackRows(command.Fallback),
+		ActiveEnvironment: activeEnvironment,
 	}
 }
 
@@ -440,7 +476,18 @@ func mapRows(values map[string]string, minimum int) []frontMatterRow {
 	return rows
 }
 
-func environmentNames(cfg *config.Config) []string {
+func fallbackRows(fallback []string) []fallbackRow {
+	rows := make([]fallbackRow, 0, max(1, len(fallback)))
+	for _, command := range fallback {
+		rows = append(rows, fallbackRow{Command: command})
+	}
+	if len(rows) == 0 {
+		rows = append(rows, fallbackRow{})
+	}
+	return rows
+}
+
+func environmentNames(cfg *config.Config, activeEnvironment string) []string {
 	names := make(map[string]bool)
 	for _, environment := range cfg.Options.Environments {
 		names[environment] = true
@@ -450,6 +497,9 @@ func environmentNames(cfg *config.Config) []string {
 			names[environment] = true
 		}
 	}
+	if activeEnvironment != "" {
+		names[activeEnvironment] = true
+	}
 	result := make([]string, 0, len(names))
 	for environment := range names {
 		result = append(result, environment)
@@ -458,23 +508,67 @@ func environmentNames(cfg *config.Config) []string {
 	return result
 }
 
-func (s *Server) environmentViews(cfg *config.Config) []environmentView {
-	presets := make(map[string]bool)
-	for _, environment := range cfg.Options.Environments {
-		presets[environment] = true
-	}
-	inUse := make(map[string]bool)
-	for _, command := range cfg.Commands {
-		for environment := range command.Envs {
-			inUse[environment] = true
-		}
-	}
-	names := environmentNames(cfg)
+func (s *Server) environmentViews(cfg *config.Config, activeEnvironment string) []environmentView {
+	names := environmentNames(cfg, "")
 	views := make([]environmentView, 0, len(names))
 	for _, name := range names {
-		views = append(views, environmentView{Name: name, Preset: presets[name], InUse: inUse[name]})
+		configured := 0
+		for _, command := range cfg.Commands {
+			if strings.TrimSpace(command.Envs[name]) != "" {
+				configured++
+			}
+		}
+		status := "empty"
+		statusClass := "empty"
+		if configured == len(cfg.Commands) && configured > 0 {
+			status = "complete"
+			statusClass = "complete"
+		} else if configured > 0 {
+			status = fmt.Sprintf("partial (%d/%d commands)", configured, len(cfg.Commands))
+			statusClass = "partial"
+		}
+		views = append(views, environmentView{Name: name, Configuration: status, StatusClass: statusClass, Active: name == activeEnvironment})
 	}
 	return views
+}
+
+func resolveActiveEnvironment(cfg *config.Config) activeEnvironment {
+	if cfg.Options.EnvCommand != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), general.EnvResolveTimeout)
+		defer cancel()
+		output, err := exec.CommandContext(ctx, cfg.Options.Shell, "-c", cfg.Options.EnvCommand).Output()
+		if err == nil {
+			if name := strings.TrimSpace(string(output)); name != "" {
+				return activeEnvironment{Name: name, Source: "resolved by environment command"}
+			}
+		}
+	}
+	if name := strings.TrimSpace(os.Getenv("SMALLCTL_ENV")); name != "" {
+		return activeEnvironment{Name: name, Source: "read from SMALLCTL_ENV"}
+	}
+	return activeEnvironment{Source: "not set — fallback commands will be used"}
+}
+
+func cloneConfig(cfg *config.Config) *config.Config {
+	clone := &config.Config{Options: cfg.Options, Commands: make(map[string]config.Command, len(cfg.Commands))}
+	clone.Options.Environments = slices.Clone(cfg.Options.Environments)
+	if cfg.Options.LogLevel != nil {
+		value := *cfg.Options.LogLevel
+		clone.Options.LogLevel = &value
+	}
+	if cfg.Options.Timeout != nil {
+		value := *cfg.Options.Timeout
+		clone.Options.Timeout = &value
+	}
+	for name, command := range cfg.Commands {
+		clone.Commands[name] = config.Command{
+			Description: command.Description,
+			Args:        maps.Clone(command.Args),
+			Envs:        maps.Clone(command.Envs),
+			Fallback:    slices.Clone(command.Fallback),
+		}
+	}
+	return clone
 }
 
 func (s *Server) notice(c *gin.Context, status int, message string) {
