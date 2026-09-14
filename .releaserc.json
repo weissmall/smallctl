@@ -3,6 +3,22 @@
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    "@semantic-release/github"
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/smallctl-linux-amd64",
+            "name": "smallctl-${nextRelease.version}-amd64",
+            "label": "smallctl for amd64"
+          },
+          {
+            "path": "dist/smallctl-linux-arm64",
+            "name": "smallctl-${nextRelease.version}-arm64",
+            "label": "smallctl for arm64"
+          }
+        ]
+      }
+    ]
   ]
 }

@@ -38,7 +38,10 @@ Or with Nix:
 nix build github:weissmall/smallctl
 ```
 
-Requires Go 1.26+.
+Each GitHub Release includes versioned binaries for `amd64` and `arm64`, for
+example `smallctl-1.2.3-amd64`.
+
+Requires Go 1.24+.
 
 ## Quick Start
 
