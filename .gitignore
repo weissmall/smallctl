@@ -3,6 +3,7 @@
 # Binaries
 smallctl
 smallctl.exe
+dist/
 
 # Test binary
 *.test
