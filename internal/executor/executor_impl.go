@@ -32,7 +32,34 @@ func (e *Executor) SetDefaultTimeout(timeout time.Duration) {
 	e.DefaultTimeout = timeout
 }
 
+// SetEnvironment sets a runtime environment override. It takes precedence over
+// options.env_command and $SMALLCTL_ENV until the server stops.
+func (e *Executor) SetEnvironment(environment string) {
+	e.mu.Lock()
+	e.EnvName = strings.TrimSpace(environment)
+	e.environmentOverride = true
+	e.mu.Unlock()
+
+	e.Logger.Info("environment set at runtime", "env", strings.TrimSpace(environment))
+}
+
+// Environment returns the active environment name.
+func (e *Executor) Environment() string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.EnvName
+}
+
 func (e *Executor) ResolveEnv(cfg *config.Config) error {
+	e.mu.RLock()
+	overridden := e.environmentOverride
+	activeEnvironment := e.EnvName
+	e.mu.RUnlock()
+	if overridden {
+		e.Logger.Debug("using runtime environment override", "env", activeEnvironment)
+		return nil
+	}
+
 	if cfg.Options.EnvCommand != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), general.EnvResolveTimeout)
 		defer cancel()
@@ -41,9 +68,9 @@ func (e *Executor) ResolveEnv(cfg *config.Config) error {
 		cmd.Stderr = nil
 		out, err := cmd.Output()
 		if err == nil {
-			e.EnvName = strings.TrimSpace(string(out))
+			e.setResolvedEnvironment(strings.TrimSpace(string(out)))
 			e.Logger.Info("environment resolved via env_command",
-				"command", cfg.Options.EnvCommand, "env", e.EnvName)
+				"command", cfg.Options.EnvCommand, "env", e.Environment())
 			return nil
 		}
 		e.Logger.Warn("env_command failed, falling back to $SMALLCTL_ENV",
@@ -51,14 +78,22 @@ func (e *Executor) ResolveEnv(cfg *config.Config) error {
 	}
 
 	if env := os.Getenv("SMALLCTL_ENV"); env != "" {
-		e.EnvName = strings.TrimSpace(env)
-		e.Logger.Info("environment resolved via $SMALLCTL_ENV", "env", e.EnvName)
+		e.setResolvedEnvironment(strings.TrimSpace(env))
+		e.Logger.Info("environment resolved via $SMALLCTL_ENV", "env", e.Environment())
 		return nil
 	}
 
-	e.EnvName = ""
+	e.setResolvedEnvironment("")
 	e.Logger.Debug("no environment configured, fallback chain will always be used")
 	return nil
+}
+
+func (e *Executor) setResolvedEnvironment(environment string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !e.environmentOverride {
+		e.EnvName = environment
+	}
 }
 
 func (e *Executor) Execute(cfg *config.Config, req protocol.Request) protocol.Response {
@@ -80,8 +115,8 @@ func (e *Executor) Execute(cfg *config.Config, req protocol.Request) protocol.Re
 
 	tryList := make([]string, 0)
 
-	if e.EnvName != "" {
-		if envCmd, ok := cmd.Envs[e.EnvName]; ok && strings.TrimSpace(envCmd) != "" {
+	if environment := e.Environment(); environment != "" {
+		if envCmd, ok := cmd.Envs[environment]; ok && strings.TrimSpace(envCmd) != "" {
 			substituted := config.Substitute(envCmd, cmd.Args, resolvedArgs)
 			tryList = append(tryList, substituted)
 		}

@@ -15,7 +15,7 @@ instead of hunting through your window manager keybind configuration.
 
 ## Features
 
-- **Single binary** — `smallctl serve` and `smallctl invoke`
+- **Single binary** — `smallctl serve`, `smallctl invoke`, and `smallctl env`
 - **YAML config** — defines commands with args, env-specific variants, and fallback chains; split across multiple files per environment if you like
 - **Hot reload** — edit any config file; the server picks up changes without restart
 - **Environment awareness** — run different commands per machine (desktop vs. laptop)
@@ -61,6 +61,10 @@ smallctl serve
 ```bash
 smallctl invoke brightnessIncrease
 smallctl invoke brightnessIncrease --args step=20
+
+# Temporarily switch the running server to another environment
+smallctl env set noctalia
+smallctl env get
 ```
 
 ## Usage
@@ -86,6 +90,18 @@ smallctl invoke <command> [--args key=value,...] [--no-wait]
 - `--no-wait`: fire-and-forget — don't wait for the command to finish
 
 `smallctl invoke` exits with the exit code of the command that ultimately ran (fallbacks included). For `--no-wait` the CLI exits `0` once the request is queued.
+
+### Environment
+
+```
+smallctl env get
+smallctl env set <name>
+```
+
+`env set` changes the active environment of the running server immediately.
+The runtime value takes precedence over both `options.env_command` and
+`$SMALLCTL_ENV`, including during config hot reloads. It is not persisted: a
+server restart resolves the environment normally again.
 
 ### Examples
 
@@ -201,9 +217,10 @@ $$         → literal $
 
 ### Environment Resolution
 
-1. `options.env_command` is executed; trimmed stdout becomes the environment name.
-2. If the command is unset or fails, `$SMALLCTL_ENV` (if present) is used.
-3. If neither is set the environment is empty and `fallback` commands are invoked directly.
+1. A value set with `smallctl env set <name>` is used while the server is running.
+2. Otherwise, `options.env_command` is executed; trimmed stdout becomes the environment name.
+3. If the command is unset or fails, `$SMALLCTL_ENV` (if present) is used.
+4. If neither is set the environment is empty and `fallback` commands are invoked directly.
 
 ### Hot reload
 

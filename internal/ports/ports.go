@@ -9,8 +9,10 @@ import (
 )
 
 type ExecutionEngine interface {
+	Environment() string
 	ResolveEnv(*config.Config) error
 	Execute(*config.Config, protocol.Request) protocol.Response
+	SetEnvironment(string)
 	SetShell(string)
 	SetDefaultTimeout(time.Duration)
 }

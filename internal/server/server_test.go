@@ -24,6 +24,7 @@ func silentLogger() *slog.Logger {
 
 func setupTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
+	t.Setenv("SMALLCTL_ENV", "")
 
 	tmpDir, err := os.MkdirTemp("", "smallctl-server-test-*")
 	if err != nil {
@@ -291,19 +292,64 @@ func waitForDispatch(t *testing.T, d *recordingDispatcher, want int) {
 
 func invokeCommand(t *testing.T, socketPath, name string) protocol.Response {
 	t.Helper()
+	return sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeCommand, Command: name, Wait: true})
+}
+
+func sendRequest(t *testing.T, socketPath string, req protocol.Request) protocol.Response {
+	t.Helper()
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
 	}
 	defer conn.Close()
 
-	req := protocol.Request{Type: protocol.TypeCommand, Command: name, Wait: true}
 	data, _ := json.Marshal(req)
 	data = append(data, '\n')
 	if _, err := conn.Write(data); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
 	return readResponse(t, conn)
+}
+
+func TestServerGetsAndSetsEnvironment(t *testing.T) {
+	srv, socketPath := setupTestServer(t)
+	srv.Cfg.Commands["greet"] = config.Command{
+		Envs: map[string]string{
+			"noctalia": "echo noctalia",
+		},
+		Fallback: []string{"echo fallback"},
+	}
+
+	if err := srv.Listen(); err != nil {
+		t.Fatalf("Listen() failed: %v", err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown() })
+	time.Sleep(50 * time.Millisecond)
+
+	getResp := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeEnvironmentGet, Wait: true})
+	if !getResp.Success {
+		t.Fatalf("environment get failed: %s", getResp.Stderr)
+	}
+	if getResp.Environment != "" {
+		t.Errorf("initial environment = %q, want empty", getResp.Environment)
+	}
+
+	setResp := sendRequest(t, socketPath, protocol.Request{
+		Type:        protocol.TypeEnvironmentSet,
+		Environment: "noctalia",
+		Wait:        true,
+	})
+	if !setResp.Success {
+		t.Fatalf("environment set failed: %s", setResp.Stderr)
+	}
+	if setResp.Environment != "noctalia" {
+		t.Errorf("set environment = %q, want %q", setResp.Environment, "noctalia")
+	}
+
+	if resp := invokeCommand(t, socketPath, "greet"); !resp.Success || resp.Stdout != "noctalia\n" {
+		t.Errorf("environment-specific command response = %+v, want noctalia", resp)
+	}
 }
 
 func TestUpdateConfigUpdatesNotifyLevel(t *testing.T) {

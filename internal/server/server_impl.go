@@ -136,6 +136,20 @@ func (s *Server) handleConn(conn net.Conn) {
 		}
 		return
 	}
+	if req.Type == protocol.TypeEnvironmentGet {
+		s.writeEnvironmentResponse(conn)
+		return
+	}
+	if req.Type == protocol.TypeEnvironmentSet {
+		environment := strings.TrimSpace(req.Environment)
+		if environment == "" {
+			s.writeError(conn, "environment name required")
+			return
+		}
+		s.Executor.SetEnvironment(environment)
+		s.writeEnvironmentResponse(conn)
+		return
+	}
 
 	s.ConfigMu.RLock()
 	cfg := s.Cfg
@@ -158,6 +172,16 @@ func (s *Server) handleConn(conn net.Conn) {
 		"tried", len(resp.Tried),
 		"errors", len(resp.Errors),
 	)
+}
+
+func (s *Server) writeEnvironmentResponse(conn net.Conn) {
+	resp := protocol.Response{
+		Success:     true,
+		Environment: s.Executor.Environment(),
+	}
+	if err := writeResponse(conn, resp); err != nil {
+		s.Logger.Debug("error writing environment response", "error", err)
+	}
 }
 
 func (s *Server) writeError(conn net.Conn, msg string) {
