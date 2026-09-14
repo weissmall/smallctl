@@ -118,6 +118,9 @@ func TestLoadExampleConfig(t *testing.T) {
 	if cfg.Options.Timeout == nil || *cfg.Options.Timeout != general.DefaultTimeout {
 		t.Errorf("expected Timeout=%d, got %v", general.DefaultTimeout, cfg.Options.Timeout)
 	}
+	if cfg.Options.FailedCommandTTL == nil || *cfg.Options.FailedCommandTTL != general.DefaultFailedCommandTTL {
+		t.Errorf("expected FailedCommandTTL=%d, got %v", general.DefaultFailedCommandTTL, cfg.Options.FailedCommandTTL)
+	}
 
 	cmd, ok := cfg.Commands["brightnessIncrease"]
 	if !ok {
@@ -227,6 +230,13 @@ func TestValidate(t *testing.T) {
 			},
 			wantErr: false, // Timeout nil → default applied, no error
 		},
+		{
+			name: "negative failed command TTL",
+			cfg: &Config{
+				Options: Options{Shell: "bash", FailedCommandTTL: intPtr(-1)},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -241,6 +251,10 @@ func TestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func intPtr(value int) *int {
+	return &value
 }
 
 func TestCleanupPath(t *testing.T) {

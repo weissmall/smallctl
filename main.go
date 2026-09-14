@@ -38,6 +38,8 @@ func main() {
 		runInvoke(os.Args[2:])
 	case "env":
 		runEnv(os.Args[2:])
+	case "failures":
+		runFailures(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -52,6 +54,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  serve    Start the IPC server\n")
 	fmt.Fprintf(os.Stderr, "  invoke   Invoke a named command\n")
 	fmt.Fprintf(os.Stderr, "  env      Get or set the active environment\n")
+	fmt.Fprintf(os.Stderr, "  failures Clear temporarily skipped commands\n")
 	fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_ENV           Static environment name override\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_LOG_LEVEL     Log verbosity (0-5)\n")
@@ -63,6 +66,28 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  %s invoke screenshot --args mode=full --no-wait\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s env set noctalia\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s env get\n", binary)
+	fmt.Fprintf(os.Stderr, "  %s failures clear\n", binary)
+}
+
+// ── failures subcommand ─────────────────────────────────────────
+
+// runFailures manages the runtime cache of recently failed commands.
+func runFailures(args []string) {
+	if len(args) != 1 || args[0] != "clear" {
+		fmt.Fprintln(os.Stderr, "error: failures subcommand required (clear)")
+		os.Exit(2)
+	}
+
+	resp, err := requestServer(protocol.Request{Type: protocol.TypeFailedCommandsClear, Wait: true})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	if !resp.Success {
+		fmt.Fprintln(os.Stderr, "error: "+resp.Stderr)
+		exit(resp.ExitCode)
+	}
+	fmt.Fprintln(os.Stdout, "Cleared failed command cache.")
 }
 
 // ── serve subcommand ─────────────────────────────────────────────
@@ -325,6 +350,9 @@ func runInvoke(args []string) {
 	}
 	if len(resp.Tried) > 0 {
 		fmt.Fprintf(os.Stderr, "Tried commands: %s\n", strings.Join(resp.Tried, "; "))
+	}
+	if len(resp.Skipped) > 0 {
+		fmt.Fprintf(os.Stderr, "Skipped cached failures: %s\n", strings.Join(resp.Skipped, "; "))
 	}
 	exit(resp.ExitCode)
 }

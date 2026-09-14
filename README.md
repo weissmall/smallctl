@@ -68,6 +68,7 @@ smallctl invoke brightnessIncrease --args step=20
 # Temporarily switch the running server to another environment
 smallctl env set noctalia
 smallctl env get
+smallctl failures clear
 ```
 
 ## Usage
@@ -99,12 +100,16 @@ smallctl invoke <command> [--args key=value,...] [--no-wait]
 ```
 smallctl env get
 smallctl env set <name>
+smallctl failures clear
 ```
 
 `env set` changes the active environment of the running server immediately.
 The runtime value takes precedence over both `options.env_command` and
 `$SMALLCTL_ENV`, including during config hot reloads. It is not persisted: a
 server restart resolves the environment normally again.
+
+`failures clear` removes temporary failure marks immediately. The cache is
+also cleared by `env set` and by a configuration reload.
 
 ### Examples
 
@@ -197,6 +202,7 @@ options:
   log_file: ""                # empty = no file (default: $XDG_DATA_HOME/<binary>/log); ~ and $VAR are expanded; read at startup
   notify: "off"               # off | error | all
   timeout: 30                 # seconds, 0 = no limit (no timeout)
+  failed_command_ttl: 60      # seconds to skip failed/unavailable commands; 0 = off
   shell: "bash"               # shell executable for -c execution
 
 commands:
@@ -251,6 +257,13 @@ invoke cmd ──► Server looks up cmd in config
                         ▼     ▼
                        ok   fail ──► return all errors
 ```
+
+Before serving requests and then every `failed_command_ttl` seconds, smallctl
+uses `command -v` to check simple command invocations. Unavailable commands,
+and commands that later exit unsuccessfully, are skipped until their TTL
+expires. Complex shell expressions are not pre-parsed; they are cached only
+after a real failed execution. A successful availability probe removes the
+temporary mark.
 
 ## Environment Variables
 

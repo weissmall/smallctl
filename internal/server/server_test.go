@@ -234,6 +234,48 @@ func TestServerCommandNotFound(t *testing.T) {
 	}
 }
 
+func TestServerClearFailedCommands(t *testing.T) {
+	srv, socketPath := setupTestServer(t)
+	ttl := 60
+	srv.UpdateConfig(&config.Config{
+		Options: config.Options{Shell: general.DefaultShell, FailedCommandTTL: &ttl},
+		Commands: map[string]config.Command{
+			"cached": {
+				Fallback: []string{"false", "echo fallback"},
+			},
+		},
+	})
+	if err := srv.Listen(); err != nil {
+		t.Fatalf("Listen() failed: %v", err)
+	}
+	go func() { _ = srv.Serve() }()
+	time.Sleep(50 * time.Millisecond)
+
+	first := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeCommand, Command: "cached", Wait: true})
+	if !first.Success || len(first.Tried) != 2 {
+		t.Fatalf("first response = %+v, want failure then fallback", first)
+	}
+
+	second := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeCommand, Command: "cached", Wait: true})
+	if !second.Success || len(second.Tried) != 1 || len(second.Skipped) != 1 {
+		t.Fatalf("second response = %+v, want cached failure skipped", second)
+	}
+
+	clearResp := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeFailedCommandsClear, Wait: true})
+	if !clearResp.Success {
+		t.Fatalf("clear response = %+v, want success", clearResp)
+	}
+
+	third := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeCommand, Command: "cached", Wait: true})
+	if !third.Success || len(third.Tried) != 2 || len(third.Skipped) != 0 {
+		t.Fatalf("response after clearing = %+v, want failure retried", third)
+	}
+
+	if err := srv.Shutdown(); err != nil {
+		t.Errorf("Shutdown() error: %v", err)
+	}
+}
+
 // recordingDispatcher captures Dispatch calls for assertions. It mirrors
 // the level filtering of notify.Notifier so that only notifications that
 // would actually be sent are recorded.

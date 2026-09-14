@@ -6,12 +6,14 @@ import (
 )
 
 const (
-	DefaultTimeout    = 30
-	DefaultShell      = "bash"
-	DefaultNotify     = "off"
-	EnvResolveTimeout = 5 * time.Second
-	ShutdownTimeout   = 5 * time.Second
-	MaxRequestSize    = 16 * 1024
+	DefaultTimeout          = 30
+	DefaultFailedCommandTTL = 60
+	DefaultShell            = "bash"
+	DefaultNotify           = "off"
+	EnvResolveTimeout       = 5 * time.Second
+	CommandProbeTimeout     = 1 * time.Second
+	ShutdownTimeout         = 5 * time.Second
+	MaxRequestSize          = 16 * 1024
 
 	LevelQuiet   = 0
 	LevelError   = 1
