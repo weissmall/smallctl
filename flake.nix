@@ -37,7 +37,7 @@
           pkgs = mkPkgs system;
           smallctl = pkgs.buildGoModule {
             pname = "smallctl";
-            version = "0.1.0"; # x-release-please-version
+            version = "0.1.0";
             src = self;
             vendorHash = "sha256-AVoMypzpvdkm4qiSOs4JLiBoCwG6+N/phwqZt/WTCr8=";
           };
