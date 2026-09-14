@@ -1,8 +1,9 @@
 package protocol
 
-// Request is the JSON payload sent by smallctl invoke to the server.
+// Request is the JSON payload sent by a smallctl client to the server.
 type Request struct {
-	// Type of request: "command" (default) or "ping".
+	// Type of request: "command" (default), "ping", an environment request,
+	// or "shutdown".
 	Type RequestType `json:"type,omitempty"`
 
 	// Command is the name of the command to invoke (looked up in config.commands).

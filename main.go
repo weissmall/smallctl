@@ -38,6 +38,8 @@ func main() {
 		runInvoke(os.Args[2:])
 	case "env":
 		runEnv(os.Args[2:])
+	case "shutdown":
+		runShutdown(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -52,6 +54,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  serve    Start the IPC server\n")
 	fmt.Fprintf(os.Stderr, "  invoke   Invoke a named command\n")
 	fmt.Fprintf(os.Stderr, "  env      Get or set the active environment\n")
+	fmt.Fprintf(os.Stderr, "  shutdown Gracefully stop the IPC server\n")
 	fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_ENV           Static environment name override\n")
 	fmt.Fprintf(os.Stderr, "  SMALLCTL_LOG_LEVEL     Log verbosity (0-5)\n")
@@ -63,6 +66,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  %s invoke screenshot --args mode=full --no-wait\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s env set noctalia\n", binary)
 	fmt.Fprintf(os.Stderr, "  %s env get\n", binary)
+	fmt.Fprintf(os.Stderr, "  %s shutdown\n", binary)
 }
 
 // ── serve subcommand ─────────────────────────────────────────────
@@ -202,6 +206,8 @@ func runServe(args []string) {
 	select {
 	case sig := <-sigCh:
 		logger.Info("signal received", "signal", sig.String())
+	case <-srv.ShutdownRequested():
+		logger.Info("shutdown requested through IPC")
 	case err := <-serverErrCh:
 		if err != nil {
 			logger.Error("server error", "error", err)
@@ -214,6 +220,26 @@ func runServe(args []string) {
 		logger.Error("shutdown error", "error", err)
 	} else {
 		logger.Info("shutdown complete")
+	}
+}
+
+// ── shutdown subcommand ─────────────────────────────────────────
+
+// runShutdown asks the running server to stop after it has replied.
+func runShutdown(args []string) {
+	if len(args) != 0 {
+		fmt.Fprintln(os.Stderr, "error: shutdown accepts no arguments")
+		os.Exit(2)
+	}
+
+	resp, err := requestServer(protocol.Request{Type: protocol.TypeShutdown, Wait: true})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	if !resp.Success {
+		fmt.Fprintln(os.Stderr, "error: "+resp.Stderr)
+		exit(resp.ExitCode)
 	}
 }
 

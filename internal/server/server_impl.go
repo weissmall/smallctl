@@ -32,7 +32,18 @@ func New(
 		Executor:    exec,
 		Notifier:    notif,
 		NotifyLevel: notifyLevel,
+		shutdownCh:  make(chan struct{}),
 	}
+}
+
+// ShutdownRequested is closed when a client asks the server to stop.
+// The caller that owns the server lifecycle must then call Shutdown.
+func (s *Server) ShutdownRequested() <-chan struct{} {
+	return s.shutdownCh
+}
+
+func (s *Server) requestShutdown() {
+	s.shutdownOnce.Do(func() { close(s.shutdownCh) })
 }
 
 func (s *Server) UpdateConfig(cfg *config.Config) {
@@ -148,6 +159,16 @@ func (s *Server) handleConn(conn net.Conn) {
 		}
 		s.Executor.SetEnvironment(environment)
 		s.writeEnvironmentResponse(conn)
+		return
+	}
+	if req.Type == protocol.TypeShutdown {
+		resp := protocol.Response{Success: true}
+		if err := writeResponse(conn, resp); err != nil {
+			s.Logger.Debug("error writing shutdown response", "error", err)
+			return
+		}
+		s.Logger.Info("shutdown requested by client")
+		s.requestShutdown()
 		return
 	}
 

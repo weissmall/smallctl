@@ -158,6 +158,33 @@ func TestServerExecuteCommand(t *testing.T) {
 	}
 }
 
+func TestServerShutdownRequest(t *testing.T) {
+	srv, socketPath := setupTestServer(t)
+
+	if err := srv.Listen(); err != nil {
+		t.Fatalf("Listen() failed: %v", err)
+	}
+	go func() { _ = srv.Serve() }()
+
+	resp := sendRequest(t, socketPath, protocol.Request{Type: protocol.TypeShutdown, Wait: true})
+	if !resp.Success {
+		t.Fatalf("shutdown response = %+v, want success", resp)
+	}
+
+	select {
+	case <-srv.ShutdownRequested():
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for shutdown request")
+	}
+
+	if err := srv.Shutdown(); err != nil {
+		t.Fatalf("Shutdown() failed: %v", err)
+	}
+	if _, err := os.Stat(socketPath); !os.IsNotExist(err) {
+		t.Errorf("socket still exists after shutdown: %v", err)
+	}
+}
+
 func TestServerNoWait(t *testing.T) {
 	srv, socketPath := setupTestServer(t)
 

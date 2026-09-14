@@ -1,0 +1,13 @@
+options:
+  shell: bash
+  log_level: 1
+  notify: off
+
+commands:
+  greet:
+    args:
+      name: world
+    envs:
+      container: "printf 'hello from container\\n'"
+    fallback:
+      - "printf 'hello %s\\n' '${name}'"

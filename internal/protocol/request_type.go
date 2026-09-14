@@ -8,4 +8,5 @@ const (
 	TypePing           RequestType = "ping"
 	TypeEnvironmentGet RequestType = "environment_get"
 	TypeEnvironmentSet RequestType = "environment_set"
+	TypeShutdown       RequestType = "shutdown"
 )

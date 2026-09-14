@@ -15,7 +15,7 @@ instead of hunting through your window manager keybind configuration.
 
 ## Features
 
-- **Single binary** — `smallctl serve`, `smallctl invoke`, and `smallctl env`
+- **Single binary** — `smallctl serve`, `smallctl invoke`, `smallctl env`, and `smallctl shutdown`
 - **YAML config** — defines commands with args, env-specific variants, and fallback chains; split across multiple files per environment if you like
 - **Hot reload** — edit any config file; the server picks up changes without restart
 - **Environment awareness** — run different commands per machine (desktop vs. laptop)
@@ -118,6 +118,28 @@ smallctl invoke screenshot --args mode=full --no-wait
 # Point to an alternate config without touching the default
 SMALLCTL_CONFIG=~/dotfiles/smallctl.yaml smallctl serve
 ```
+
+### Graceful shutdown
+
+```
+smallctl shutdown
+```
+
+The command waits until the server acknowledges the request, then the server
+stops accepting new connections and waits for active requests to finish. It is
+useful for service managers and integration tests.
+
+## Docker integration test
+
+Run the complete containerized check with Docker:
+
+```bash
+bash tests/docker/test.sh
+```
+
+The image builds `smallctl`, starts a server, checks command invocation and
+runtime environment switching, then uses `smallctl shutdown`. The script exits
+with the container's status.
 
 ## Configuration
 
