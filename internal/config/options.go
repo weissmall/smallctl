@@ -26,6 +26,10 @@ type Options struct {
 	// nil → use DefaultTimeout (30). 0 → no timeout.
 	Timeout *int `yaml:"timeout"`
 
+	// FailedCommandTTL is the number of seconds a failed command is skipped.
+	// nil → use the default (60). 0 → disable failure caching and probing.
+	FailedCommandTTL *int `yaml:"failed_command_ttl"`
+
 	// Shell is the shell binary used for -c execution. Default: "bash".
 	Shell string `yaml:"shell"`
 }

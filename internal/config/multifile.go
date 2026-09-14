@@ -244,12 +244,13 @@ func lookupEnvOrigin(envOrigins map[string]map[string]string, command, env strin
 // optionsPatch mirrors Options with pointer fields so that explicitly set
 // values can be distinguished from unset ones while merging files.
 type optionsPatch struct {
-	EnvCommand *string `yaml:"env_command"`
-	LogLevel   *int    `yaml:"log_level"`
-	LogFile    *string `yaml:"log_file"`
-	Notify     *string `yaml:"notify"`
-	Timeout    *int    `yaml:"timeout"`
-	Shell      *string `yaml:"shell"`
+	EnvCommand       *string `yaml:"env_command"`
+	LogLevel         *int    `yaml:"log_level"`
+	LogFile          *string `yaml:"log_file"`
+	Notify           *string `yaml:"notify"`
+	Timeout          *int    `yaml:"timeout"`
+	FailedCommandTTL *int    `yaml:"failed_command_ttl"`
+	Shell            *string `yaml:"shell"`
 }
 
 func optionsPatchFrom(options Options) optionsPatch {
@@ -268,6 +269,9 @@ func optionsPatchFrom(options Options) optionsPatch {
 	}
 	if options.Timeout != nil {
 		patch.Timeout = options.Timeout
+	}
+	if options.FailedCommandTTL != nil {
+		patch.FailedCommandTTL = options.FailedCommandTTL
 	}
 	if options.Shell != "" {
 		patch.Shell = &options.Shell
@@ -311,6 +315,7 @@ func (m *optionsMerger) merge(patch optionsPatch, file string) error {
 	}{
 		{"log_level", &m.values.LogLevel, patch.LogLevel},
 		{"timeout", &m.values.Timeout, patch.Timeout},
+		{"failed_command_ttl", &m.values.FailedCommandTTL, patch.FailedCommandTTL},
 	}
 	for _, field := range numbers {
 		if err := mergeOptionField(field.name, field.current, field.next, file, m.origins); err != nil {
@@ -352,6 +357,9 @@ func (m *optionsMerger) applyTo(options *Options) {
 	}
 	if m.values.Timeout != nil {
 		options.Timeout = m.values.Timeout
+	}
+	if m.values.FailedCommandTTL != nil {
+		options.FailedCommandTTL = m.values.FailedCommandTTL
 	}
 	if m.values.Shell != nil {
 		options.Shell = *m.values.Shell

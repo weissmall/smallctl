@@ -15,6 +15,9 @@ type ExecutionEngine interface {
 	SetEnvironment(string)
 	SetShell(string)
 	SetDefaultTimeout(time.Duration)
+	ConfigureFailureCache(*config.Config)
+	ClearFailedCommands()
+	Close()
 }
 
 type NotificationDispatcher interface {

@@ -15,6 +15,9 @@ func Validate(cfg *Config) error {
 	if cfg.Options.Timeout != nil && *cfg.Options.Timeout < 0 {
 		return fmt.Errorf("options.timeout must be >= 0 (got: %d)", *cfg.Options.Timeout)
 	}
+	if cfg.Options.FailedCommandTTL != nil && *cfg.Options.FailedCommandTTL < 0 {
+		return fmt.Errorf("options.failed_command_ttl must be >= 0 (got: %d)", *cfg.Options.FailedCommandTTL)
+	}
 
 	if cfg.Options.LogLevel != nil {
 		lvl := *cfg.Options.LogLevel

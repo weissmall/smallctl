@@ -106,6 +106,10 @@ func applyDefaults(cfg *Config) {
 		d := general.DefaultTimeout
 		cfg.Options.Timeout = &d
 	}
+	if cfg.Options.FailedCommandTTL == nil {
+		d := general.DefaultFailedCommandTTL
+		cfg.Options.FailedCommandTTL = &d
+	}
 	if cfg.Commands == nil {
 		cfg.Commands = make(map[string]Command)
 	}

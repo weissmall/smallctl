@@ -32,6 +32,10 @@ options:
   # Per-command execution timeout in seconds. 0 = no timeout.
   # timeout: 30
 
+  # Seconds to skip a command after it fails or its executable is unavailable.
+  # The executable availability probe also runs at this interval. 0 disables it.
+  # failed_command_ttl: 60
+
   # Shell binary used for command execution.
   # shell: "bash"
 

@@ -288,6 +288,92 @@ func TestExecuteTimeout(t *testing.T) {
 	}
 }
 
+func TestExecuteSkipsCachedFailedCommand(t *testing.T) {
+	e := New(testLogger())
+	t.Cleanup(e.Close)
+	e.EnvName = "test"
+	ttl := 60
+	cfg := &config.Config{
+		Options: config.Options{Shell: "bash", FailedCommandTTL: &ttl},
+		Commands: map[string]config.Command{
+			"command": {
+				Envs:     map[string]string{"test": "false"},
+				Fallback: []string{"echo fallback"},
+			},
+		},
+	}
+	e.ConfigureFailureCache(cfg)
+
+	first := e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+	if !first.Success || len(first.Tried) != 2 || len(first.Skipped) != 0 {
+		t.Fatalf("first response = %+v, want failed env command then fallback", first)
+	}
+
+	second := e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+	if !second.Success || len(second.Tried) != 1 || len(second.Skipped) != 1 {
+		t.Fatalf("second response = %+v, want cached env command skipped", second)
+	}
+	if second.Tried[0] != "echo fallback" || second.Skipped[0] != "false" {
+		t.Errorf("unexpected execution result: tried=%v skipped=%v", second.Tried, second.Skipped)
+	}
+
+	e.ClearFailedCommands()
+	third := e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+	if !third.Success || len(third.Tried) != 2 || len(third.Skipped) != 0 {
+		t.Fatalf("response after clearing cache = %+v, want both commands tried", third)
+	}
+}
+
+func TestSetEnvironmentClearsFailedCommandCache(t *testing.T) {
+	e := New(testLogger())
+	t.Cleanup(e.Close)
+	e.EnvName = "test"
+	ttl := 60
+	cfg := &config.Config{
+		Options: config.Options{Shell: "bash", FailedCommandTTL: &ttl},
+		Commands: map[string]config.Command{
+			"command": {
+				Envs:     map[string]string{"test": "false"},
+				Fallback: []string{"echo fallback"},
+			},
+		},
+	}
+	e.ConfigureFailureCache(cfg)
+	_ = e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+
+	e.SetEnvironment("test")
+	resp := e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+	if !resp.Success || len(resp.Tried) != 2 || len(resp.Skipped) != 0 {
+		t.Fatalf("response after env set = %+v, want failed command retried", resp)
+	}
+}
+
+func TestConfigureFailureCacheSkipsUnavailableExecutable(t *testing.T) {
+	e := New(testLogger())
+	t.Cleanup(e.Close)
+	e.EnvName = "test"
+	ttl := 60
+	const unavailable = "smallctl-command-that-does-not-exist"
+	cfg := &config.Config{
+		Options: config.Options{Shell: "bash", FailedCommandTTL: &ttl},
+		Commands: map[string]config.Command{
+			"command": {
+				Envs:     map[string]string{"test": unavailable + " --flag"},
+				Fallback: []string{"echo fallback"},
+			},
+		},
+	}
+	e.ConfigureFailureCache(cfg)
+
+	resp := e.Execute(cfg, protocol.Request{Command: "command", Wait: true})
+	if !resp.Success || len(resp.Tried) != 1 || len(resp.Skipped) != 1 {
+		t.Fatalf("response = %+v, want unavailable command skipped before execution", resp)
+	}
+	if resp.Tried[0] != "echo fallback" || resp.Skipped[0] != unavailable+" --flag" {
+		t.Errorf("unexpected execution result: tried=%v skipped=%v", resp.Tried, resp.Skipped)
+	}
+}
+
 func TestExecuteOverrideArgs(t *testing.T) {
 	e := New(testLogger())
 	e.EnvName = ""

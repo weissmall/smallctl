@@ -44,6 +44,7 @@ func (s *Server) UpdateConfig(cfg *config.Config) {
 	if cfg.Options.Timeout != nil {
 		s.Executor.SetDefaultTimeout(time.Duration(*cfg.Options.Timeout) * time.Second)
 	}
+	s.Executor.ConfigureFailureCache(cfg)
 
 	if level := notify.ResolveLevel(cfg.Options.Notify); level != s.NotifyLevel {
 		s.Logger.Info("notify level updated", "level", level)
@@ -150,6 +151,13 @@ func (s *Server) handleConn(conn net.Conn) {
 		s.writeEnvironmentResponse(conn)
 		return
 	}
+	if req.Type == protocol.TypeFailedCommandsClear {
+		s.Executor.ClearFailedCommands()
+		if err := writeResponse(conn, protocol.Response{Success: true}); err != nil {
+			s.Logger.Debug("error writing failed command cache response", "error", err)
+		}
+		return
+	}
 
 	s.ConfigMu.RLock()
 	cfg := s.Cfg
@@ -236,6 +244,7 @@ func flattenOutput(s string) string {
 
 func (s *Server) Shutdown() error {
 	s.Logger.Info("shutting down server...")
+	s.Executor.Close()
 
 	if err := s.listener.Close(); err != nil {
 		s.Logger.Warn("error closing listener", "error", err)

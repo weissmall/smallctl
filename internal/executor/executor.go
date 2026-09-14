@@ -27,4 +27,10 @@ type Executor struct {
 
 	// DefaultTimeout is the per-command timeout when not specified per-command.
 	DefaultTimeout time.Duration
+
+	failedCommands       map[string]time.Time
+	failureCacheTTL      time.Duration
+	failureProbeCommands []string
+	failureCacheStop     chan struct{}
+	failureCacheVersion  uint64
 }

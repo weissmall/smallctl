@@ -23,6 +23,9 @@ type Response struct {
 	// Tried lists every command that was attempted, in order.
 	Tried []string `json:"tried"`
 
+	// Skipped lists commands skipped because they are in the failed-command cache.
+	Skipped []string `json:"skipped"`
+
 	// Errors lists every failed attempt with details. Empty on success.
 	Errors []ErrorEntry `json:"errors"`
 }
